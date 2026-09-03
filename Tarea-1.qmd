@@ -1,0 +1,67 @@
+---
+title: "Tarea 1"
+author: "Sol Astengoo"
+format: pdf
+---
+
+# Ejercicio 7 - Modelo Exponencial-Gamma
+
+$Y_i$ = Tiempo de vida útil del componente electrónico $i$ _(en miles de horas)_
+
+$Y_i \overset{\text{i.i.d.}}{\sim} Exp(\lambda)$ 
+
+$p(y_i|\lambda) = \lambda e^{-\lambda y_i}$
+
+$y = (y_1, ...,y_n)$
+
+## Parte 1
+Para demostrar que $\lambda \sim Gamma(a,b)$ es conjugada debemos obersvar si la distribución posterior pertenece a la misma familia de modelos que la previa, entonces debemos verificar que, al combinar el modelo para los datos
+con una distribución previa Gamma, la distribución posterior pertenece
+también a la familia Gamma.
+
+Utilizando el dato de que las $y_i$ son iid,
+$$p(y|\lambda) = \prod_{i=1}^n{\lambda e^{-\lambda y_i}} = \lambda^n e^{-\lambda{\sum_{i=1}^n{y_i}}}$$
+
+
+$$p(\lambda) \propto \lambda^{a-1} e^{-b\lambda}$$
+Usando la Regla de Bayes:
+$p(\theta|y)=\frac{p(y|\theta)p(\theta)}{p(y)}$
+$p(\theta|y) \propto (y|\theta)p(\theta)$
+
+$$p(\lambda|y) \propto (y|\lambda)p(\lambda)$$
+
+$$p(\lambda|y) \propto \lambda^n e^{-\lambda{\sum_{i=1}^n{y_i}}} \lambda^{a-1} e^{-b\lambda}$$
+Agrupando las potencias de $\lambda$ y los términos exponenciales,
+obtenemos:
+$$p(\lambda|y) \propto \lambda^{(a-1+n)} e^{-\lambda(\sum_{i=1}^n{y_i}+b)}$$
+$$\lambda|y \sim Gamma(a+n, \sum_{i=1}^n{y_i}+b)$$
+De esta forma, la distribución posterior de $\lambda$ pertenece a la
+misma familia de distribuciones que la previa, ya que ambas son
+distribuciones Gamma. Por lo tanto, la distribución Gamma es conjugada
+para el modelo Exponencial.
+
+## Parte 2
+
+Interpretamos los parametros a y b de la distribución previa como:
+
+
+
+# Ejercicio 8
+
+## Parte a
+
+...
+
+## Parte b
+
+...
+
+## Parte c
+
+...
+
+# Ejercicio 10
+
+## Parte 1
+
+...
