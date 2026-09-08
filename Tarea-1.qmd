@@ -304,6 +304,7 @@ $$I(\sigma^2) = - \frac{n}{2(\sigma^2)^2} + \frac{1}{(\sigma^2)^3} n\sigma^2 = -
 Concluimos que la previa de Jeffreys es:
 
 $$ p_J(\sigma^2) \propto \sqrt{\frac{n}{2(\sigma^2)^2}} \propto \sqrt{\frac{n}{2}} \sqrt{\frac{1}{\sigma^2}} \propto \frac{1}{\sigma^2} $$
+
 ## Parte 4
 
 ¿Es la previa de Jeffreys encontrada el caso límite de la previa conjugada?¿Para qué valores de a y b?
@@ -322,6 +323,7 @@ $$(\sigma^2)^{-a-1} e^{-b/\sigma^2} \propto \sigma^{-2}$$
 Para que la igualdad se cumpla se deben comprobar las siguientes igualdades $-a-1 = -1$ y $-\frac{b}{\sigma^2} = 0$, entonces tomando $a \to 0$ y $b \to 0$ en la previa conjugada:
 
 $$ \lim_{a\to0,\;b\to0} (\sigma^2)^{-a-1}e^{-b/\sigma^2} = (\sigma^2)^{-1}e^0 = (\sigma^2)^{-1} $$
+
 ## Parte 5
 
 Definir una opción débilmente informativa para $\sigma^2$. Justificar la elección comparando la dispersion que la previa le asigna a $\sigma^2$ con la escala de variabilidad que uno esperaría razonablemente en los datos del problema.
@@ -344,9 +346,10 @@ $$\eta \sim N(\mu,\tau^2)$$
 De esta forma, los valores posibles de $\sigma^2$ quedan determinados por
 
 $$\sigma^2=e^\eta$$
+
 Los parámetros $\mu$ y $\tau^2$ se elegirán de forma que la previa sea suficientemente dispersa para permitir valores razonables de $\sigma^2$.
 
-Dado que el enunciado no proporciona datos observados ni una escala de variabilidad esperada para $y_i$, no tenemos información suficiente para elegir los parámetros de la previa en función del problema concreto. Por lo tanto, se propone, a modo ilustrativo, tomar $\sigma^2=1$, ya que no contamos con observaciones que permitan determinar una escala a partir de los datos.
+Dado que el enunciado no proporciona datos observados ni una escala de variabilidad esperada para $y_i$, no tenemos información suficiente para elegir los parámetros de la previa en función del problema concreto. Por lo tanto, se propone a modo ilustrativo, tomar $\sigma^2=1$, ya que no contamos con observaciones que permitan determinar una escala a partir de los datos.
 
 Como estamos trabajando con $\eta=\log(\sigma^2)$, esto implica:
 
@@ -363,11 +366,13 @@ Podemos comprobar qué valores de $\sigma^2$ permite de la siguiente forma:
 Tomamos aproximadamente dos desviaciones estándar de $\eta$:
 
 $$-4 \leq \eta \leq 4$$
+
 Como $\sigma^2=e^\eta$,
 
 $$e^{-4} \leq \sigma^2 \leq e^4$$
 es decir,
 
 $$0,018 \lesssim \sigma^2 \lesssim54,6$$
+
 Eso muestra que la previa permite un intervalo amplio de valores positivos para $\sigma^2$.
 
