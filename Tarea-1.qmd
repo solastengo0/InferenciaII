@@ -218,8 +218,158 @@ Comparando este resultado con el obtenido en el punto b:
 $$p_j(\psi) \propto  \frac{e^{\frac{\psi}{2}}}{1+e^\psi}$$
 Comprobamos que se llega a la misma distribución previa.
 
-# Ejercicio 10
+# Ejercicio 10 - Modelo normal, inferencia para σ²
+
+Sea $Y_i \overset{\text{i.i.d.}}{\sim} N(m,\sigma^2)$, con m un valor conocido.
+Observamos $y = (y_1,...,y_n)$.
 
 ## Parte 1
+Mostrar que $\sigma^2 \sim Inversa-Gamma(a,b)$ es conjugada en este modelo, donde
+$$p(\sigma^2) = \frac{b^a}{\Gamma(a)} (\sigma^2)^{-a-1} e^{-b/\sigma^2}$$
+Y encontrar los parametros de la distribución posterior.
 
-...
+Para esto primero encontremos la distribución de los datos:
+$$p(y_i|\sigma^2) = \frac{1}{\sqrt{2\pi}\sigma}e^{-\frac{1}{2}(\frac{y_i-m}{\sigma})^2}$$
+
+$$p(y|\sigma^2) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma}e^{-\frac{1}{2}(\frac{y_i-m}{\sigma})^2} = (\frac{1}{\sqrt{2\pi}})^n \sigma^{-n} e^{-\frac{1}{2\sigma^2}\sum_{i=1}^n(y_i-m)^2}$$
+
+Ahora usando Bayes encontramos la posterior:
+$$p(\sigma^2|y) \propto p(y|\sigma^2) p(\sigma^2)$$
+$$p(y|\sigma^2) p(\sigma^2) \propto (\sigma^{-n}) e^{-\frac{1}{2\sigma^2}\sum_{i=1}^n(y_i-m)^2} (\sigma^{-2a-2}) e^{-b/\sigma^2} \propto (\frac{1}{\sigma^{2a+2+n}})e^{-\frac{1}{\sigma^2}(b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2)}$$
+$$p(\sigma^2|y) \propto (\frac{1}{\sigma^{2a+2+n}}) e^{-\frac{1}{\sigma^2}(b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2)} \propto (\frac{1}{(\sigma^2)^{a+1+n/2}}) e^{-\frac{1}{\sigma^2}(b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2)}$$
+Por último identificamos los parametros de la distribución posterior de la siguiente forma:
+
+$$\sigma^2|y \sim Inv-Gamma \left( a+\frac{n}{2}, b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2 \right)$$
+Como la distribución posterior pertenece a la misma familia Inversa-Gamma que la previa, concluimos que la Inversa-Gamma es conjugada para este modelo.
+ 
+## Parte 2
+
+Calcular la media, la moda y la varuabza de una IG(a,b) en funcion de a y b.
+Luego utilizar los resultados obtenidos para describir cómo la media y la moda de la psoterior de $\sigma^2$ se actualizan respecto de la previa a medida que n crece.
+
+Para la moda debemos maximizar la densidad,
+
+$$p_X(x) = \frac{b^a}{\Gamma(a)} x^{-a-1} e^{-b/x}$$
+Aplicamos logaritmo para facilitarnos las cuentas
+$$log\ p_X(x) = log \left( \frac{b^a}{\Gamma(a)} \right) - log(x)(a+1) - \frac{b}{x}$$
+Derivamos respecto a $x$
+$$\frac{d}{dx}log\ p_X(x) = -(a+1)\frac{1}{x} + \frac{b}{x^2}$$
+Igualamos la derivada a 0
+$$-\frac{(a+1)}{x} + \frac{b}{x^2} = 0 \Leftrightarrow -(a+1)+\frac{b}{x} = 0 \Leftrightarrow \frac{x}{b} = \frac{1}{a+1} \Leftrightarrow x = \frac{b}{a+1}$$
+Entonces 
+$$moda(X) = \frac{b}{a+1}$$
+
+Para la media y varianza tenemos expresiones ya conocidas y son:
+
+$$E(X) = \frac{b}{a-1},\ a>1$$
+$$V(X) = \frac{b^2}{(a-1)^2(a-2)},\ a>2$$
+
+Ahora veamos la moda y la media de la posterior según los parámetros encontrados,
+Como $\sigma^2|y \sim Inv-Gamma \left( a+\frac{n}{2}, b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2 \right)$, entonces $a_n = a+\frac{n}{2}$ y $b_n = b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2$
+
+Si reemplazamos estos parametros en las formulas definidas antes:
+
+$$moda(\sigma^2|y) = \frac{b_n}{a_n+1} = \frac{b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2}{a+\frac{n}{2}+1}$$
+$$E(\sigma^2|y) = \frac{b_n}{a_n-1} = \frac{b+\frac{1}{2}\sum_{i=1}^n(y_i-m)^2}{a+\frac{n}{2}-1}$$
+A medida que aumenta $n$, tenemos más datos disponibles, por lo que la distribución posterior toma cada vez más en cuenta la información aportada por estos datos. Por lo tanto, la media y la moda posteriores dependen cada vez más de las observaciones y menos de los valores $a$ y $b$ de la previa.
+
+## Parte 3 
+
+Encontrar la previa de Jeffreys para $\sigma^2$.
+
+Recordamos que queremos $p_J(\sigma^2) \propto \sqrt{I(\sigma^2)}$, donde
+
+$$I(\sigma^2) = -E \left[ \frac{\partial^2}{\partial\sigma^2} log\ p(Y|\sigma^2) \right]$$
+
+En la parte 1 vimos
+$$p(Y|\sigma^2) = (\frac{1}{\sqrt{2\pi}})^n\ (\sigma^2)^{-n/2}\ e^{-\frac{1}{2\sigma^2}\sum_{i=1}^n(y_i-m)^2} $$
+Aplicamos logaritmo
+$$log\ p(Y|\sigma^2) = n\  log(\frac{1}{\sqrt{2\pi}}) -\frac{n}{2}\ log(\sigma^2) -\frac{1}{2\sigma^2}\sum_{i=1}^n(y_i-m)^2$$
+Derivamos respecto a $\sigma^2$
+$$\frac{\partial}{\partial\sigma^2} log\ p(Y|\sigma^2) = -\frac{n}{2\sigma^2} + \frac{1}{2(\sigma^2)^2}\sum_{i=1}^n(y_i-m)^2$$
+Segunda derivada respecto a $\sigma^2$
+$$\frac{\partial^2}{\partial(\sigma^2)^2} log\ p(Y|\sigma^2) = \frac{n}{2(\sigma^2)^2} - \frac{1}{(\sigma^2)^3}\sum_{i=1}^n(y_i-m)^2$$
+$$I(\sigma^2) = -E \left[ \frac{n}{2(\sigma^2)^2} - \frac{1}{(\sigma^2)^3}\sum_{i=1}^n(y_i-m)^2 \right] = - \frac{n}{2(\sigma^2)^2} + \frac{1}{(\sigma^2)^3}E \left[ \sum_{i=1}^n(y_i-m)^2 \right]$$
+Ahora nos queda definir $E \left[ \sum_{i=1}^n(y_i-m)^2 \right]$
+
+Como $Y_i \sim N(m,\sigma^2)$, entonces:
+
+$$Y_i-m \sim N(0,\sigma^2)$$
+Por lo tanto, utilizando la relación entre la esperanza del cuadrado y la varianza:
+$$ E\left[(Y_i-m)^2\right] = Var(Y_i-m) + \left[E(Y_i-m)\right]^2 = \sigma^2 $$
+Por linealidad de la esperanza:
+$$ E\left[\sum_{i=1}^n(Y_i-m)^2\right] = \sum_{i=1}^n E\left[(Y_i-m)^2\right] = n\sigma^2 $$
+Entonces:
+$$I(\sigma^2) = - \frac{n}{2(\sigma^2)^2} + \frac{1}{(\sigma^2)^3} n\sigma^2 = - \frac{n}{2(\sigma^2)^2} + \frac{n}{(\sigma^2)^2} = \frac{n}{2(\sigma^2)^2} $$
+Concluimos que la previa de Jeffreys es:
+
+$$ p_J(\sigma^2) \propto \sqrt{\frac{n}{2(\sigma^2)^2}} \propto \sqrt{\frac{n}{2}} \sqrt{\frac{1}{\sigma^2}} \propto \frac{1}{\sigma^2} $$
+## Parte 4
+
+¿Es la previa de Jeffreys encontrada el caso límite de la previa conjugada?¿Para qué valores de a y b?
+
+Para estas preguntas vamos a usar la previa de Jeffreys y la previa dada en la parte 1, la cual ya comprobamos que es conjugada:
+
+$$p(\sigma^2) = \frac{b^a}{\Gamma(a)} (\sigma^2)^{-a-1} e^{-b/\sigma^2} \propto (\sigma^2)^{-a-1} e^{-b/\sigma^2}$$
+
+La previa de Jeffreys obtenida en la parte anterior es:
+
+$$p_J(\sigma^2) \propto (\sigma^2)^{-1}$$
+
+Para determinar si la previa de Jeffreys es el caso límite de la previa conjugada, buscamos los valores de $a$ y $b$ que hagan que la forma de la Inversa-Gamma coincida con la previa de Jeffreys.
+
+$$(\sigma^2)^{-a-1} e^{-b/\sigma^2} \propto \sigma^{-2}$$
+Para que la igualdad se cumpla se deben comprobar las siguientes igualdades $-a-1 = -1$ y $-\frac{b}{\sigma^2} = 0$, entonces tomando $a \to 0$ y $b \to 0$ en la previa conjugada:
+
+$$ \lim_{a\to0,\;b\to0} (\sigma^2)^{-a-1}e^{-b/\sigma^2} = (\sigma^2)^{-1}e^0 = (\sigma^2)^{-1} $$
+## Parte 5
+
+Definir una opción débilmente informativa para $\sigma^2$. Justificar la elección comparando la dispersion que la previa le asigna a $\sigma^2$ con la escala de variabilidad que uno esperaría razonablemente en los datos del problema.
+
+Primero definimos a una _previa débilmente informativa_, como una que:
+
+ - descarte valores de $\sigma^2$ que no tienen sentido;
+ 
+ - pero sea suficientemente flexible como para tener poco efecto sobre la posterior.
+
+Entonces para una propuesta de una previa débilmente informativa, vamos a trabajar con una reparametrización de $\sigma^2$:
+
+$$\eta = \log(\sigma^2)$$
+Elegimos esta reparametrización ya que $\sigma^2$ solo puede tomar valores positivos, mientras que $\eta$ puede tomar cualquier valor real, de esta forma podemos trabajar con una distribución normal, osea podemos plantear una distribución previa directamente sobre $\eta$.
+
+Proponemos entonces:
+
+$$\eta \sim N(\mu,\tau^2)$$
+
+De esta forma, los valores posibles de $\sigma^2$ quedan determinados por
+
+$$\sigma^2=e^\eta$$
+Los parámetros $\mu$ y $\tau^2$ se elegirán de forma que la previa sea suficientemente dispersa para permitir valores razonables de $\sigma^2$.
+
+Como el ejercicio no proporciona los $y_i$, no podemos obtener una escala desde los datos. Entonces tenemos que hacer una elección razonable de referencia.
+
+Una opción sencilla, a modo de referencia, es tomar $\sigma^2=1$, ya que no contamos con observaciones que permitan determinar una escala a partir de los datos.
+
+Como estamos trabajando con $\eta=\log(\sigma^2)$, esto implica:
+
+$$\mu=\log(1)=0$$
+Entonces:
+
+$$\eta \sim N(0,\tau^2)$$
+Ahora elegimos $\tau^2$ de manera que la previa sea suficientemente amplia.
+
+Por ejemplo, podemos tomar $\tau^2=4$ de modo que $\eta \sim N(0,4)$, de esta forma logramos que la previa permita valores de $\sigma^2$ bastante alejados de 1.
+
+Podemos comprobar qué valores de $\sigma^2$ permite de la siguiente forma:
+
+Tomamos aproximadamente dos desviaciones estándar de $\eta$:
+
+$$-4 \leq \eta \leq 4$$
+Como $\sigma^2=e^\eta$,
+
+$$e^{-4} \leq \sigma^2 \leq e^4$$
+es decir,
+
+$$0,018 \lesssim \sigma^2 \lesssim54,6$$
+Eso muestra que la previa permite un intervalo amplio de valores positivos para $\sigma^2$.
+
