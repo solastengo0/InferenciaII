@@ -376,3 +376,8 @@ $$0,018 \lesssim \sigma^2 \lesssim54,6$$
 
 Eso muestra que la previa permite un intervalo amplio de valores positivos para $\sigma^2$.
 
+::: {.callout-note}
+## Uso de IA
+
+Para la realización de esta tarea se utilizó ChatGPT como herramienta de apoyo. Se utilizó principalmente para consultar dudas conceptuales, revisar derivaciones y cálculos, verificar la interpretación de los resultados y mejorar la claridad de algunas explicaciones y la visualización de la presentación de la tarea. También se utilizó para revisar y consultar el material del curso en relación con los conceptos utilizados en los ejercicios.
+:::
