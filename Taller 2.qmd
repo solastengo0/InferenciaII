@@ -1,0 +1,124 @@
+---
+title: "Taller 2"
+format: pdf
+---
+
+Objetivo: Hallar posterior pero sin integrar cositas feas
+
+-> Simulamos con Gibbs
+
+```{r}
+library(Sleuth3)
+data(case0101)
+y1 <- case0101$Score[case0101$Treatment == "Intrinsic"]
+y2 <- case0101$Score[case0101$Treatment == "Extrinsic"]
+```
+
+Pregunta de interés: ¿la motivación intrínseca aumenta la creatividad? Trabajaremos con
+
+$$\delta = \theta_1 - \theta_2 = \theta_{intrinseco} -\theta_{extrinseco} $$
+En los tres ejercicios usamos el mismo modelo para los datos:
+$$y_{ij}|\theta_j,\sigma^2 \sim N(\theta_j, \sigma^2), \ j=1,2$$
+con previa $\theta_j \sim N(\mu_0,\tau_0^2)$ para las medias. Lo que cambia entre ejercicios es la previa de $\sigma^2$ y el algoritmo.
+
+```{r}
+#install.packages("posterior")
+library(posterior)
+```
+
+## Ejercicio 1
+
+a- Análisis exploratorio. Grafiquen los datos de ambos grupos y calculen medias y desvíos.
+¿Es razonable el supuesto de varianza común?
+```{r}
+boxplot(list(y1,y2), col = c("#2e7083","#E97"))
+```
+```{r}
+mean(y1)
+mean(y2)
+sd(y1)
+sd(y2)
+```
+2- Algoritmo para simular con Gibbs
+```{r}
+media_normal <- function(y, s2, mu0, tau02) {
+n <- length(y)
+tau2n <- 1 / (1 / tau02 + n / s2)
+mun <- tau2n * (mu0 / tau02 + n * mean(y) / s2)
+rnorm(1, mean = mun, sd = sqrt(tau2n))
+}
+```
+
+```{r}
+post_sigma_ig <- function(y1, y2, th1, th2, nu0, s02) {
+SS <- sum((y1 - th1)^2) + sum((y2 - th2)^2)
+a <- (nu0 + length(y1) + length(y2)) / 2
+b <- (nu0 * s02 + SS) / 2
+1 / rgamma(1, shape = a, rate = b)
+}
+```
+
+```{r}
+gibbs <- function(y1, y2, S = 5000, s.in,
+                  mu0 = 0, tau02 = 100, nu0 = 1, s02 = 1)
+  {
+s2 <- s.in
+
+out <- matrix(NA, S, 3, dimnames = list(NULL, c("theta1", "theta2", "sigma2"))) # matriz vacia 5000(S) filas x 3 columnas 
+for (t in 1:S) {
+th1 <- media_normal(y1, s2, mu0, tau02) # 1. theta1 |
+th2 <- media_normal(y2, s2, mu0, tau02) # 2. theta2 |
+s2 <- post_sigma_ig(y1, y2, th1, th2, nu0, s02) # 3. sigma2 | en esta simulacion se usan los simulados anteriormente, esto hace que sea una simulacion por gibbs
+out[t, ] <- c(th1, th2, s2)
+}
+out
+}
+```
+
+Implementamos las funciones:
+
+```{r}
+mu0 <- 15
+tau02 <- 200
+nu0 <- 1
+s02 <- 0.2
+g1 <- gibbs(y1, y2, S = 5000, s.in = 1, mu0 = mu0, tau02 = tau02, nu0 = nu0, s02 = s02)
+
+head(g1)
+
+round(colMeans(g1),2)
+```
+# d-
+```{r}
+inicios <- c(1,10,50,200)
+cadenas1 <- lapply(inicios, function(s2)
+  gibbs(y1, y2, 5000, s2, mu0, tau02, nu0, s02))
+```
+
+```{r}
+draws1 <- as_draws_array(aperm(simplify2array(cadenas1), c(1,3,2)))
+draws1 <- mutate_variables(draws1, delta = theta1 - theta2)
+```
+
+```{r}
+
+```
+
+
+## Ejercicio 2
+
+Ahora $\eta = log\ \sigma^2 \sim N(m_0, s_0^2)$ entonces $\sigma^2 \sim LogNormal(m_0,s_0^2)$, los parametros son $(\theta_1, \theta_2, \eta)$
+
+# a- previa
+$m_0 = 3$
+$s_0 = 1.5$
+
+
+# b-
+
+# c- log - posterior 
+```{r}
+
+```
+
+

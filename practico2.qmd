@@ -1,0 +1,369 @@
+---
+title: "Práctico 2"
+subtitle: "Inferencia II - Licenciatura en Estadística"
+format: pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,warning = F)
+```
+
+## Ejercicio 1: aproximación por grilla
+
+Se estudian 13 tambos, y en cada uno se cuenta la cantidad de vacas infectadas sobre un total de $n=30$ vacas muestreadas. Se asume que la cantidad de vacas infectadas en el tambo $i$ sigue una distribución
+
+$$ y_i \sim \text{Binomial}(n=30, \theta), \quad i = 1, \dots, 13 $$
+
+donde $\theta$ es la prevalencia (proporción de vacas infectadas), compartida por todos los tambos.
+
+```{r , include=TRUE}
+
+y <- c(21, 22, 2, 25, 3, 19, 17, 23, 6, 7, 8, 14, 22)
+
+n <- 30
+```
+
+El objetivo es obtener simulaciones de la distribución posterior de $\theta$ **sin usar previas conjugadas**, utilizando métodos de simulación Monte Carlo.
+
+------------------------------------------------------------------------
+
+Se propone como previa para $\theta$:
+
+$$ \theta \sim \text{Uniforme}(0, 0.3) $$
+
+**Se pide:**
+
+a)  Usando **aproximación por grilla** (*grid approximation*), obtener $10$ mil simulaciones de la distribución posterior de $\theta$.
+
+    - Definir una grilla de valores de $\theta$ en el soporte de la previa.
+
+    ```{r,warning=FALSE,include=TRUE,echo=TRUE}
+
+    #Modificar el código para que funcione correctamente
+
+    grilla <- seq(from =0 , to = 0.3 , length.out =1000 )
+
+    ```
+
+    - Calcular la verosimilitud conjunta de las $13$ observaciones para cada valor de la grilla.
+
+    ```{r}
+
+    #Modificar el código para que funcione correctamente
+
+
+    # Recordamos que: dado theta
+    # Yi ~ Binomial(n = 30, theta)
+
+    # Y que la verosimilitud conjunta es el producto de las 13
+    # probabilidades binomiales.
+
+    # Armamos una función que para cada valor de theta
+    # Calcule la log-verosimilitud de los 13 tambos para ese valor de theta
+
+    #Trabajar con logaritmos con el argumento log = T,
+    #ver help(dbinom).
+
+    funcion_logverosimilitud = function(theta) {
+      sum(#Para sumar los logaritmos
+        dbinom(x= y, #Para todos los valores de y
+               size = n, #Cantidad de vacas muestreadas
+               prob = theta, #Los valores de theta en los que va a evaluar
+               log = TRUE
+        )
+      )
+    }
+
+
+    #Guardar los valores de la log verosimilitud
+    # sapply: A una función le aplica una lista de valores
+    log_verosimilitud <- sapply(X = grilla, FUN = funcion_logverosimilitud)
+
+
+
+
+    ```
+
+    - Combinar previa y verosimilitud, normalizar, y samplear $10$ mil valores de $\theta$ desde la grilla con esas probabilidades.
+
+    ```{r}
+
+    # Densidad previa Uniforme(0, 0.3) evaluada en la grilla
+    log_previa <- dunif(x = grilla,
+      min = 0,
+      max = 0.3,
+      log = TRUE)
+
+    # Por Bayes:
+    # posterior ∝ verosimilitud x previa
+    #
+    # Dado que estamos trabajando en escala logarítmica, el producto se transforma en suma.
+    log_posterior <-  log_verosimilitud + #Lo que sabemos de los datos
+                            # + 
+                      log_previa  #La distribución previa
+      
+      
+
+      
+    # Hasta ahora hemos trabajado en escala logarítmica
+    # Transformamos los logaritmos para interpretarlos como probabilidades
+      
+    posterior_no_norm <- exp(log_posterior - max(log_posterior))
+
+    #Los normalizamos
+
+    posterior_prob <- posterior_no_norm / sum(posterior_no_norm)
+
+    plot(grilla,
+         posterior_prob,
+         type = "l",
+         lwd = 2,
+         xlab = expression(theta),
+         ylab = "Probabilidad posterior",
+         main = "Posterior aprox por grilla")
+    
+    #Para samplear desde la posterior:
+
+    set.seed(1234)
+
+    theta_post <- sample(
+      x = grilla, 
+      size = 10000,
+      replace = TRUE,
+      prob = posterior_prob#La probabilidad posterior
+    )
+
+
+    ```
+
+b)  Con las simulaciones obtenidas:
+
+    - Graficar la distribución posterior de $\theta$.
+
+    ```{r}
+
+    hist(x = theta_post,
+         probability = TRUE,
+         xlab = expression(theta),
+         breaks = 20,
+         main = "Distribución posterior de theta")
+
+    #Pruebe distintos valores para el argumento breaks o dejandolo sin definir
+
+    ```
+
+    - Calcular la media posterior.
+
+    ```{r, media posterior}
+    # sum(y)/(13*30) media muestral
+    mean(x=theta_post)
+
+    ```
+
+    - Calcular un intervalo de credibilidad al 95%.
+
+    ```{r}
+
+    quantile(x = theta_post,
+      probs = c( , ))
+
+    ```
+
+c)  Comentar los resultados. ¿Qué le pasa a la posterior? ¿Por qué creen que ocurre esto, mirando los datos observados?
+
+## Ejercicio 2: algoritmo de rechazo
+
+El *algoritmo de rechazo* es un procedimiento para generar simulaciones *independientes* de una distribución de la que no sabemos simular directamente.
+
+En este ejercicio, vamos a generar muestras de una $\operatorname{Beta}(2, 5)$ **sin usar** `rbeta()`, usando el algoritmo de rechazo con un propuesta $\operatorname{Unif}(0,1)$.
+
+Los pasos del algoritmo son:
+
+1.  Proponer un candidato $\theta^* \sim \operatorname{Unif}(0,1)$ (propuesta).
+2.  Calcular $f(\theta^*)$, la densidad objetivo (en este caso, la densidad de la $\operatorname{Beta}(2,5)$) evaluada en el candidato.
+3.  Aceptar el candidato con probabilidad $f(\theta^*) / M$, donde $M$ es una cota superior de $f$ en el soporte (por ejemplo, el máximo de la densidad).
+4.  Repetir hasta juntar la cantidad de muestras deseada.
+
+Se pide:
+
+a)  Obtener 5000 valores simulados de $\operatorname{Beta}(2, 5)$
+
+b)  comparar la simulaciones obtenidas con la distribución teórica
+
+```{r}
+
+# Parámetros de la Beta
+
+a <- 2
+b <- 5
+
+# Candidato a M
+# La moda de esa Beta(2,5)?
+# La densidad de la Beta (2,5) en la moda?
+moda_beta <- 
+
+max_beta <- 
+
+```
+
+```{r}
+
+# El algoritmo de rechazo
+
+set.seed(2026)
+
+S <- 5000
+
+theta_sim <- c() #Acá vamos a guardar las simulaciones
+
+#Lo proponemos con un while porque no sabemos cuando exactamente se va a llegar a las 5000 aceptaciones, y lo condicionamos para encontrar más de 5000
+while (length(theta_sim) < S) {
+  
+  # Proponemos muchos candidatos a la vez
+  theta_star <- 
+  
+  # Probabilidad de aceptación
+  prob_acept <- 
+  
+  # Uniformes para decidir aceptación/rechazo
+  u <- 
+  
+  # Nos quedamos con los aceptados y los vamos uniendo. El criterio de parada es superar los 5000
+  theta_sim <- c(theta_sim,
+                 theta_star[u <= prob_acept])
+}
+
+# Nos quedamos con los 5000 primeros porque en el while le pedimos que abarque más
+theta_sim <- theta_sim[1:S]
+
+
+
+```
+
+```{r}
+#Comparación
+
+hist(theta_sim,
+     probability = TRUE,
+     breaks = ,
+     xlim = c(0, 1),
+     xlab = expression(theta),
+     main = "Simulación por rechazo de Beta(2,5)")
+
+# Densidad teórica
+curve(expr = dbeta(x, 2, 5),
+      from = 0,
+      to = 1,
+      add = TRUE,
+      lwd = 2)
+
+# ¿Otra forma de compararlas?
+
+
+```
+
+## Ejercicio 3: Tambos con previa Normal(0.5, 0.12²)
+
+Retomando el caso de los tambos con la siguiente previa:
+
+$$ \theta \sim \text{Normal}(0.5, 0.12^2) $$
+
+Vamos a obtener simulaciones de la posterior usando el algoritmo de rechazo que implementamos, pero ahora la densidad objetivo es la posterior (previa × verosimilitud) en lugar de una $\operatorname{Beta}$.
+
+**Se pide:**
+
+a)  Usando **rejection sampling**, obtener $10$ mil simulaciones de la distribución posterior de $\theta$.
+    - Proponer candidatos desde la previa $\operatorname{Normal}(0.5, 0.12^2)$.
+    - Calcular la verosimilitud conjunta de los datos para cada candidato.
+    - Definir una cota $M$ adecuada y aceptar/rechazar según corresponda.
+    
+```{r}
+
+```
+    
+b)  Con las simulaciones obtenidas:
+    - Graficar la distribución posterior de $\theta$.
+    - Calcular la media posterior.
+    - Calcular un intervalo de credibilidad al $95\%$.
+c)  Comentar los resultados: ¿Tiene sentido esta posterior comparada con la parte i) del ejercicio? ¿Qué tasa de aceptación obtuvieron, y cómo se compara con la de la parte ii) del ejercicio? ¿Por qué creen que pasa esto?
+
+## Ejercicio 4. Contaminación en playas de Montevideo
+
+La Intendencia de Montevideo mide diariamente la concentración de enterococos fecales en sus playas. El valor límite para considerar la playa apta para el baño es de 500. A continuación están los valores medidos el 3 de setiembre en las playas de Montevideo:
+
+```{r}
+enterococos <- c(670, 1700, 150, 710, 30, 70, 230, 20, 30, 130, 80, 40, 120, 100, 330, 140, 230, 120)
+```
+
+Proporcione una estimación bayesiana de la probabilidad de que una playa seleccionada al azar tenga un valor **mayor o igual** al límite de 500. Describa todos los detalles relevantes: qué modelo utilizó, qué prior utilizó, qué supuestos hace y qué limitaciones tiene.
+
+## Ejercicio 5 - (4.4 de Hoff)
+
+Mezclas de distribuciones previas conjugadas: Para la densidad a posteriori del Ejercicio $3.4$ *(Ejercicio 6 del práctico 1)*:
+
+a)  Representa gráficamente $p(\theta|y)$ o $p(y|\theta)p(\theta)$ utilizando la distribución previa de mezcla y una secuencia densa de valores de $\theta$. ¿Se te ocurre alguna forma de obtener un intervalo de confianza a posteriori para $\theta$ del $95\%$ basado en cuantiles? Considera usar una aproximación por grilla.
+
+b)  Para muestrear una variable aleatoria $z$ de la distribución de mezcla $wp_1(z)+(1−w)p_0(z)$, primero se lanza una moneda $w$ y sea $x$ el resultado (esto se puede hacer en R con) `x <- rbinom(1, 1, w)`Luego, si $x = 1$, se extrae una muestra de $z$ a partir de $p_1$, y si $x = 0$, se extrae una muestra de $z$ a partir de $p_0$. Mediante esta técnica, obtenga una aproximación de Monte Carlo de la distribución posterior $p(\theta|y)$ y un intervalo de credibilidad del $95\%$ basado en cuantiles, y compárelos con los resultados de la parte a).
+
+## Ejercicio 6 - (4.7 de Hoff)
+
+Modelos de mezcla: Tras un análisis a posteriorde los datos de una población de plantas de calabaza, se determinó que el peso vegetal total de una planta dada podía modelarse mediante la siguiente distribución:
+
+$$\begin{array}{ccc}
+p(y|\theta,\sigma^2)=.31\operatorname{dnorm}(y,\theta,\sigma)+.46\operatorname{dnorm}(2\theta_1,2\sigma)+.23\operatorname{dnorm}(y,3\theta_1,3\sigma)
+\end{array}$$
+
+Donde se han calculado la distribuciones posteriores de los parámetros como $1/\sigma\sim\operatorname{gamma}(10,2.5)$, y $\theta|\sigma^2\sim\operatorname{normal}(4.1,\sigma/20)$.
+
+a)  Muestrea al menos $5000$ valores de $y$ para la predicción predictiva posterior.
+
+b)  Construya un intervalo de credibilidad basado en el cuantil del $75\%$ para un nuevo valor de $Y$.
+
+c)  Forme una región HPD del 75 % para una nueva Y de la siguiente manera:
+
+i\) Calcula estimaciones de la densidad posterior de Y usando el comando `density` en R, y luego normaliza los valores de densidad para que sumen $1$.
+
+ii\) Ordena estas probabilidades discretas en orden decreciente.
+
+iii\) Determine el primer valor de probabilidad tal que la suma acumulada de los valores ordenados supere $0.75$. Su región HPD incluye todos los valores de y cuya probabilidad discretizada sea superior a este umbral. Describa su región HPD y compárela con la región basada en cuantiles.
+
+## Ejercicio 7 - (5.1 de Hoff)
+
+*El ejercicio se resuelve de forma analítica con los datos en el sitio del autor:*
+
+<https://www2.stat.duke.edu/courses/Fall09/sta290/datasets/Hoffdata/>
+
+*O cargandolos desde la consola con:*
+
+```{r cargar datos, echo=TRUE,include=TRUE}
+
+base = "https://www2.stat.duke.edu/courses/Fall09/sta290/datasets/Hoffdata/"
+
+Col1 = scan(paste0(base, "school1.dat"), quiet = TRUE)
+Col2 = scan(paste0(base, "school2.dat"), quiet = TRUE)
+Col3 = scan(paste0(base, "school3.dat"), quiet = TRUE)
+
+
+```
+
+Los archivos **school1.dat**, **school2.dat** y **school3.dat** contienen datos sobre el tiempo que los estudiantes de tres escuelas secundarias dedicaron al estudio o a las tareas escolares durante un periodo de exámenes. Analice los datos de cada una de estas escuelas por separado, utilizando el modelo normal con una distribución a previa conjugada, en el que ${\mu_0 = 5, \sigma^2_0 = 4, \kappa_0 = 1, \nu_0 = 2}$, y calcule o aproxime lo siguiente:
+
+a)  medias a posteriores e intervalos de confianza del $95\%$ para la media $\theta$ y la desviación estándar $\sigma$ de cada escuela.
+
+b)  La probabilidad posterior de que $\theta_i < \theta_j < \theta_k$ para las seis permutaciones $\{i, j, k\}$ of ${1, 2, 3}$.
+
+## Ejercicio 8 - (5.3 de Hoff)
+
+Distribuciones marginales: Dadas las observaciones $Y_1, \dots, Y_n \sim \operatorname{i.i.d. } \operatorname{Normal}(\theta, \sigma^2)$ y utilizando la distribución previa conjugada para $\theta$ y $\sigma^2$, derive la fórmula para $p(\theta|y_1, \dots, y_n)$, la distribución posterior marginal de $\theta$ condicionada a los datos pero marginal con respecto a $\sigma^2$.
+
+Verifique su resultado comparando la fórmula obtenida con una estimación de Monte Carlo de la distribución marginal, utilizando valores de su elección para $Y_1, \dots, Y_n, \mu_0, \sigma^2_0, \nu_0$ y $\kappa_0$. Derive también $p(\tilde{\sigma}^2|y_1, \dots, y_n)$, donde $\tilde{\sigma}^2 = 1/\sigma^2$ es la precisión.
+
+## Ejercicio 9 - (5.4 de Hoff)
+
+Distribución previa de Jeffreys: Para modelos de muestreo expresados ​​en términos de un vector $\psi$ de dimensión $p$, la distribución previa de Jeffreys se define como $p_J(\psi) \propto \sqrt{|I(\psi)|}$, donde $\sqrt{|I(\psi)|}$ es el determinante de la matriz $I(\psi)$ de dimensión $p × p$, cuyos elementos son $I(\psi)_{k,l} = −E[\partial^2 \, log\, p(Y |\psi)\,/\,\partial\psi_k\,\partial\psi_l]$.
+
+a\. Demuestre que la distribución previa de Jeffreys para el modelo normal es $p_J(\theta, \sigma^2) \propto (\sigma^2)^{\frac{-3}{2}}$.
+
+b\. Sea $y = (y_1, \ldots , y_n)$ el conjunto de valores observados de una muestra $\text{i.i.d.}$ proveniente de una población normal $(\theta,\sigma^2)$. Encuentre una densidad de probabilidad $p_J (\theta, \sigma^2|y)$ tal que $p_J (\theta, \sigma^2|y) \propto p_J (\theta, \sigma^2)p(y|\theta, \sigma^2)$.
+
+Puede resultar conveniente expresar esta densidad conjunta como $p_J (\theta|\sigma^2, y) × p_J (\sigma^2|y)$. ¿Puede considerarse esta densidad conjunta como una densidad posterior?

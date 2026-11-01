@@ -1,0 +1,215 @@
+---
+title: "Tarea 2"
+author: "Sol Astengo"
+format: pdf
+---
+
+## Ejercicio 2 - Algoritmo de rechazo
+
+El *algorimo de rechazo* es un procedimiento para generar simulaciones *independientes* de una distribución de la que no sabemos simular directamente.
+
+Vamos a simular muestras de una $Beta(2,5)$ sin usar `rbeta()`, usando el algoritmo de rechazo con una propuesta $Unif(0,1)$
+
+Para esto vamos a seguir los siguientes pasos:
+
+1.  Proponer un candidato $\theta^* \sim Unif(0,1)$
+
+2.  Calcular $f(\theta^*)$, la densidad objetivo evaluada en el candidato.
+
+3.  Aceptar el candidato con probabilidad $f(\theta^*)/M$, donde M es una cota superior de $f$ en el soporte.
+
+4.  Repetir hasta juntar la cantidad de muestras deseadas.
+
+### Parte a 
+
+Queremos obtener 5000 valores simulados de $Beta(2,5)$
+
+Generamos 5000 candidatos a partir de la distribución propuesta:
+```{r}
+set.seed(123)
+
+S <- 5000
+theta.prop <- runif(S, min = 0, max = 1)
+
+u <- runif(S)
+```
+
+Calculamos $f(\theta^*)$:
+
+Como la densidad objetivo es una $Beta(2,5)$ usando la forma de la distribución y   Bayes concluimos que 
+$$f(\theta^*) \propto \theta^* (1 - \theta^*)^4$$
+```{r}
+dens_obj <- function(v){
+  (gamma(7)/(gamma(2)*gamma(5)))*v*(1-v)^4
+}
+f_theta <- sapply(theta.prop, dens_obj)
+```
+
+Ahora vamos a calcular la cte $M$, que es una constante que interviene en la decisión de aceptar o rechazar un candidato $\theta^*$, tal que $f(\theta^*) \leq Mg(\theta^*)$
+
+Dado que la distribución propuesta es una $uniforme(0,1)$ podemos afirmar que $g(\theta^*) = 1$.
+Entonces la condición queda $f(\theta^*) \leq M$.
+
+Como $M$ funciona como una especie de techo que queda por encima de la densidad objetivo necesitamos que $M$ sea al menos tan grande como el máximo de la densidad $Beta(2,5)$, osea, $M \geq max f(\theta^*)$.
+
+Para hallar el máximo de $f(\theta^*)$ derivamos la expresión:
+
+$$\frac{d}{d\theta^*} \theta^* (1 - \theta^*)^4 = (1-\theta^*)^4 + \theta^* \frac{d}{d\theta^*} (1 - \theta^*)^4 = (1-\theta^*)^4 - 4\theta^*(1-\theta^*)^3 = (1-\theta^*)^3(1-5\theta^*)$$
+Igualamos a 0 $f'(\theta^*) \propto (1-\theta^*)^3(1-5\theta^*) = 0$
+
+$$(1-\theta^*)^3(1-5\theta^*) = 0$$
+
+$$(1-5\theta^*) = 0 \Rightarrow \theta^* = 1/5$$
+
+$$(1-\theta^*)^3 = 0 \Rightarrow \theta^* = 1$$
+
+Por estudio de signo confirmamos que cuando $\theta^* = 1/5$ la densidad alcanza su máximo.
+
+Para determinar el valor de $M$, evaluamos la densidad en 1/5:
+
+$$f(1/5) = \frac{\Gamma(2+5)}{\Gamma(2)\Gamma(5)} (1/5)(1-1/5)^4$$
+
+```{r}
+M <- (gamma(7)/(gamma(2)*gamma(5)))*(1/5)*(1-1/5)^4
+M
+```
+Ahora, para decidir si aceptamos o rechazamos cada candidato $\theta^*$, utilizamos la regla del algoritmo de rechazo:
+
+$$ u\leq\frac{f(\theta^*)}{Mg(\theta^*)}$$
+
+Como $g(\theta^*)=1$ , la condición queda:
+$$ u\leq\frac{f(\theta^*)}{M}$$
+```{r}
+acepta <- u <= f_theta/M
+theta.post <- theta.prop[acepta]
+```
+
+Ahora en `theta.post` tenemos de los 5000 candidatos solo los aceptados, el tema es que no son 5000 los valores simulados, la idea es repetir el procedimiento hasta alcanzar esos 5000, para ello creamos una función:
+
+```{r}
+rechazo_beta <- function(S) {
+  
+  dens_obj <- function(v){
+      (gamma(7)/(gamma(2)*gamma(5))) * v * (1-v)^4
+      }
+  M <- (gamma(7)/(gamma(2)*gamma(5)))*(1/5)*(1-1/5)^4 # calculamos M
+  
+  theta.post <- c()
+  
+  while (length(theta.post)<S) {
+    
+    theta.prop <- runif(S, min = 0, max = 1) # generamos los candidatos
+
+    u <- runif(S) # generamos u
+    
+    f_theta <- sapply(theta.prop, dens_obj) # calculamos f
+    
+    acepta <- u <= f_theta/M
+    theta.post <- c(theta.post, theta.prop[acepta]) # guardamos los aceptados
+  }
+  
+  theta.post <- theta.post[1:S]
+}
+```
+
+```{r}
+theta.post <- rechazo_beta(5000)
+length(theta.post)
+```
+Ahora si, tenemos los 5000 valores simulados.
+
+### Parte b
+
+Qjueremos comparar las simulaciones obtenidas con la distribución teórica.
+
+Vamos a plantear el histograma de los valores simulados y también una linea que represente la distribución teórica de una $Beta(2,5)$:
+
+```{r}
+library(ggplot2)
+library(patchwork)
+g1 <- ggplot(data.frame(theta.post), aes(x = theta.post)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30) + #Ajuste de escala
+  stat_function(fun = dens_obj, color = "red") #Dist. teorica
+
+g2 <- ggplot(data.frame(theta.post), aes(x = theta.post)) +
+  geom_density() +
+  stat_function(fun = dens_obj, color = "Red")
+
+g1 + g2
+```
+
+En ambos gráficos podemos observar que la densidad formada por los datos simulados por el metodo de _algorimo de rechazo_ se asemeja a la distribución teórica de una $Beta(2,5)$. 
+
+## Ejercicio 4 - Contaminación en playas de Montevideo
+
+La Intendencia de Montevideo mide diariamente la concentración de enterococos fecales en sus playas. El valor límite para considerar la playa apta para el baño es de 500. A continuación están los valores medidos el 3 de setiembre en las playas de Montevideo:
+
+```{r}
+enterococos <- c(670, 1700, 150, 710, 30, 70, 230, 20, 30, 130, 80, 40, 120,
+                 100, 330, 140, 230, 120)
+```
+
+Proporcione una estimación bayesiana de la probabilidad de que una playa seleccionada al azar tenga un valor **mayor o igual** al límite de 500. Describa todos los detalles relevantes: qué modelo utilizó, qué prior utilizó, qué 9supuestos hace y qué limitaciones tiene.
+
+Nos interesa la probabilidad de que una playa supere el límite, $P(Y \geq 500)$, podemos plantearlo como transformar cada observación en un indicador de si supera o no el límite:
+$$
+X_i = 
+\begin{cases}
+1 & \text{si } Y_i \geq 500 \\
+0 & \text{si } Y_i < 500
+\end{cases}
+$$
+Entonces $X_i$ representa si una playa está por encima del límite, y podemos definir: 
+$$X_i|\theta \sim Bernoulli(\theta)$$
+Si contamos cuántas de las 18 playas superan el límite obtenemos un $X$ que puede modelarse como:
+$$X|\theta \sim Binomial(18, \theta)$$
+De los datos que tenemos podemos determinar cuantas playas cumplen $Y \geq 500$, osea nuestros $x$
+```{r}
+enterococos_superan <- enterococos[enterococos >= 500]
+length(enterococos_superan)
+```
+3 de las 18 playas observadas tienen una concentración mayor o igual a 500.
+
+Ahora para definir la previa tenemos en cuenta que no tenemos información previa que haga que algunos valores de $\theta$ sean más probables que otros, y que en clases vimos que cuando teniamos una distribución de los datos $Binomial$, se definía generalmente una $Beta$, por esto la previa se define como:
+
+$$\theta \sim U(0,1) \equiv Beta(1,1)$$
+Para obtener la posterior utilizamos $p(\theta|x) \propto p(x|\theta)p(\theta)$
+
+Siendo $p(x|\theta) = (^{18}_{x})\theta^x(1-\theta)^{18-\theta}$
+Y $p(\theta) = \frac{\Gamma(2)}{\Gamma(1)\Gamma(1)}$
+
+$$p(\theta|x) \propto \theta^x(1-\theta)^{18-\theta}$$
+Y como $x = 3$ entonces $p(\theta|3) \propto \theta^3(1-\theta)^{18-3}$.
+
+Podemos concluir entonces que la distribución posterior es una $Beta(4,16)$.
+
+Ahora continuamos calculando una estimación bayesiana para $P(Y \geq 500)$, para esto, podemos obtener una estimación puntual utilizando la media de la distribución posterior:
+
+$$\hat{\theta} = E(\theta|Y=y)$$
+Osea calculamos la esperanza de la $Beta(4,16)$:
+$$ \hat{\theta} = E(\theta|Y=y) = \frac{4}{16+4} = 0.2$$
+Esta estimación puntual representa la probabilidad de que una playa seleccionada al azar supere el límite.
+
+Continuamos identificando los *supuestos* que hicimos al definir las distribuición de los datos:
+
+- Independencia: suponemos que el hecho de que una playa supere o no el límite no depende del resultado de las otras playas.
+
+- Misma probabilidad: al usar un único parámetro $\theta$ para las 18 playas, estamos suponiendo que todas las playas tienen la misma probabilidad de superar el límite.
+
+- Datos extraídos en mismas condiciones: estamos suponiendo que las mediciones se realizaron bajo condiciones comparables, de modo que las diferencias observadas puedan tratarse como diferencias entre las playas y no como consecuencia de condiciones de medición diferentes.
+
+Por último planteemos que *limitaciones* puede tener la distribución posterior hallada:
+
+- Momento de la medición: los datos corresponden a un único día. Por lo tanto, la estimación describe la situación observada ese día y no necesariamente la probabilidad de superar 500 en otros días.
+
+- Muestra chica: solo tenemos 18 playas, por lo que la estimación puede tener bastante incertidumbre.
+
+- Supuesto de una única probabilidad $\theta$: estamos suponiendo que todas las playas tienen la misma probabilidad de superar el límite de 500. En la realidad, las playas pueden diferir por distintas condiciones.
+
+- Independencia: si las playas cercanas están afectadas por factores comunes, las observaciones podrían no ser realmente independientes.
+
+
+::: {.callout-note}
+Para la realización de esta tarea se utilizó ChatGPT de OpenAI como herramienta de apoyo. Se utilizó principalmente para consultar dudas conceptuales, revisar derivaciones y cálculos, verificar la interpretación de los resultados y mejorar la claridad de algunas explicaciones y de la presentación del trabajo en QMD/R. También se utilizó para revisar y consultar el material del curso en relación con los conceptos utilizados en los ejercicios.
+:::
+
