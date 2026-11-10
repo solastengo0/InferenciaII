@@ -1,0 +1,125 @@
+---
+title: "Practico 4"
+author: "Sol A."
+format: pdf
+---
+
+```{r}
+library(bayesrules) # para los datos de cada ejercicio
+library(rstanarm) # ajustar glm bayesianos
+library(bayesplot) # diagnóstico y ppchecks
+library(loo) # comparar modelos
+library(tidyverse) # manipular datos
+```
+
+```{r}
+#| label: funciones-auxiliares
+#| code-summary: "Funciones auxiliares usadas en todo el práctico"
+# Resumen de diagnósticos MCMC: R-hat y razón de tamaño efectivo por parámetro
+tabla_diag <- function(modelo) {
+  tibble(
+    parametro = names(rhat(modelo)),
+    Rhat      = round(rhat(modelo), 4),
+    neff_ratio = round(neff_ratio(modelo), 3)
+  )
+}
+
+# Resumen posterior compacto: media e intervalo de credibilidad al 90 %
+tabla_post <- function(modelo) {
+  draws <- as.matrix(modelo)
+  tibble(
+    parametro = colnames(draws),
+    media     = round(colMeans(draws), 4),
+    q5        = round(apply(draws, 2, quantile, 0.05), 4),
+    q95       = round(apply(draws, 2, quantile, 0.95), 4)
+  )
+}
+```
+
+
+## Cargar Datos
+```{r}
+data(bald_eagles)
+glimpse(bald_eagles)
+```
+```{r}
+library(patchwork)
+
+g1 <- ggplot(bald_eagles, aes(year, count)) +
+  geom_point()
+  
+g2 <- ggplot(bald_eagles, aes(year, count/hours)) +
+  geom_point()
+  
+g1 + g2
+```
+
+```{r}
+# Configuración común de MCMC (la misma que usa el libro)
+CADENAS <- 4
+ITER    <- 5000*2
+SEMILLA <- 84735
+
+m_norm <- stan_glm(count ~ year + hours,
+                   data = bald_eagles,
+                   family = gaussian,
+                   chains = CADENAS,
+                   iter = ITER,
+                   seed = SEMILLA,
+                   refresh = 0)
+
+tabla_post(m_norm)
+
+prior_summary(m_norm)
+```
+
+```{r}
+#| label: ej1b-diag
+#| fig-height: 5
+mcmc_trace(m_norm, pars = c("(Intercept)", "year", "hours", "sigma"))
+tabla_diag(m_norm)
+```
+Lindas cadenas :D
+
+```{r}
+pp_check(m_norm, nreps = 50) + labs(title = "Modelo normal: densidades predictivas vs. observadas")
+```
+
+```{r}
+prop_negativos <- function(y) mean(y < 0) #Calcula la proporción de negativos en y
+
+yrep_norm <- posterior_predict(m_norm) #Para cada paso de MCMC genera 37 datos simulados
+
+p_neg <- mean(apply(yrep_norm, 1, prop_negativos)) #Chequear la proporción de negativos en la simulación
+
+pp_check(m_norm, plotfun = "stat", stat = "min") +
+  labs(title = "Estadístico T(y) = mínimo", x = "min(y)")
+
+pp_check(m_norm, plotfun = "stat", stat = "prop_negativos") + labs(title = "Estadístico T(y) = Proporción de negativos", x = "prop_neg(y)")
+
+```
+
+# Ejercicio 2
+
+```{r}
+m_poi <- stan_glm(count ~ year + offset(log(hours)),
+                   data = bald_eagles,
+                   family = poisson,
+                   chains = CADENAS,
+                   iter = ITER,
+                   seed = SEMILLA,
+                   refresh = 0)
+
+tabla_post(m_poi)
+
+prior_summary(m_poi)
+```
+
+```{r}
+mcmc_trace(m_poi, pars = c("(Intercept)", "year"))
+tabla_diag(m_poi)
+```
+```{r}
+pp_check(m_poi)
+```
+

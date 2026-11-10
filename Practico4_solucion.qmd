@@ -1,0 +1,186 @@
+---
+title: "Práctico 4 — Solución"
+subtitle: "Inferencia II - GLM bayesianos para conteos"
+lang: es
+format:
+  html:
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Ver código"
+    code-tools: true
+    df-print: kable
+    fig-width: 7
+    fig-height: 4
+    embed-resources: true
+    theme:
+      light: flatly
+      dark: darkly
+execute:
+  warning: false
+  message: false
+  cache: true
+---
+
+
+
+```{r}
+#| label: setup
+#| code-fold: false
+#| cache: false
+library(bayesrules) 
+library(rstanarm)   
+library(bayesplot)  
+library(loo)        
+library(tidyverse)  
+library(plotly)     
+
+theme_set(theme_minimal(base_size = 12))
+color_scheme_set("brightblue")
+
+# Configuración común de MCMC (la misma que usa el libro)
+CADENAS <- 4
+ITER    <- 5000*2
+SEMILLA <- 84735
+```
+
+```{r}
+#| label: funciones-auxiliares
+#| code-summary: "Funciones auxiliares usadas en todo el práctico"
+# Resumen de diagnósticos MCMC: R-hat y razón de tamaño efectivo por parámetro
+tabla_diag <- function(modelo) {
+  tibble(
+    parametro = names(rhat(modelo)),
+    Rhat      = round(rhat(modelo), 4),
+    neff_ratio = round(neff_ratio(modelo), 3)
+  )
+}
+
+# Resumen posterior compacto: media e intervalo de credibilidad al 90 %
+tabla_post <- function(modelo) {
+  draws <- as.matrix(modelo)
+  tibble(
+    parametro = colnames(draws),
+    media     = round(colMeans(draws), 4),
+    q5        = round(apply(draws, 2, quantile, 0.05), 4),
+    q95       = round(apply(draws, 2, quantile, 0.95), 4)
+  )
+}
+```
+
+# Parte 1 · Águilas calvas en Ontario
+
+```{r}
+#| label: datos-aguilas
+#| code-fold: false
+data(bald_eagles)
+glimpse(bald_eagles)
+```
+
+## Ejercicio 1: Modelo inicial
+
+### a. Exploración
+
+```{r}
+#| label: ej1a
+#| fig-height: 6
+#| 
+g1 <- ggplot(bald_eagles, aes(year, count, text = paste("Horas:", hours))) +
+  geom_point(size = 2)+
+  labs(x = "Año", y = "Águilas avistadas", title = "Conteo anual")
+
+g2 <- ggplot(bald_eagles, aes(year, count/hours, text = paste("Horas:", hours))) +
+  geom_point(size = 2, color = "#2c7fb8") +
+  labs(x = "Año", y = "Águilas por hora-persona", title = "Tasa por hora de observación")
+
+subplot(ggplotly(g1, tooltip = c("x", "y", "text")),
+        ggplotly(g2, tooltip = c("x", "y", "text")),
+        nrows = 2, shareX = TRUE, titleY = TRUE)
+```
+
+
+
+
+::: {.callout-tip collapse="true"}
+## Respuesta 1a
+
+Un buen modelo debería reproducir:
+
+- **Datos de conteo:** valores enteros y no negativos, con muchos ceros en los primeros años (`r sum(bald_eagles$count == 0)` de `r nrow(bald_eagles)` años con cero avistamientos).
+
+- **Crecimiento sostenido y aproximadamente exponencial** hacia el final del período, tanto en el conteo como en la tasa por hora.
+
+- **Varianza que crece con la media:** al principio los conteos oscilan entre 0 y 3, y al final entre 3 y 12.
+:::
+
+### b. Modelo normal
+
+```{r}
+#| label: ej1b
+m_norm <- stan_glm(
+  count ~ year + hours,
+  data = bald_eagles,
+  family = gaussian,
+  chains = CADENAS,
+  iter = ITER,
+  seed = SEMILLA,
+  refresh = 0)
+
+tabla_post(m_norm)
+
+prior_summary(m_norm)
+```
+Se puede observar que el modelo está construido bajo la noción de previas debilmente informativas ya que no fueron especificadas en el código.
+
+La salida de `prior_summary(m_norm)` muestra los valores que utilizó `rstanarm`.
+
+Las $20.000$ muestras construidas bajo MCMC son muestras de la posterior conjunta $(\beta_0,\beta_1,\beta_2,\sigma)$ y 
+
+
+```{r}
+#| label: ej1b-diag
+#| fig-height: 5
+mcmc_trace(m_norm, pars = c("(Intercept)", "year", "hours", "sigma"))
+tabla_diag(m_norm)
+```
+
+::: {.callout-tip collapse="true"}
+## Respuesta 1b
+
+Sí. Las cadenas se mezclan bien y son indistinguibles entre sí, todos los $\hat R$ están en `r sprintf("%.3f", max(rhat(m_norm)))` o menos (es decir, prácticamente 1) y la razón de tamaño efectivo mínima es `r round(min(neff_ratio(m_norm)), 2)`, muy por encima de 0.1.
+
+Que el MCMC funcione bien solo significa que aproximamos bien el posterior del modelo; no dice nada sobre si el modelo es adecuado para los datos.
+:::
+
+### c. Diagnósticos del modelo
+
+```{r}
+#| label: ej1c-dens
+pp_check(m_norm, nreps = 50) + labs(title = "Modelo normal: densidades predictivas vs. observadas")
+```
+
+```{r}
+#| label: ej1c-stat
+prop_negativos <- function(y) mean(y < 0) #Calcula la proporción de negativos en y
+
+yrep_norm <- posterior_predict(m_norm) #Para cada paso de MCMC genera 37 datos simulados
+
+p_neg <- mean(apply(yrep_norm, 1, prop_negativos)) #Chequear la proporción de negativos en la simulación
+
+pp_check(m_norm, plotfun = "stat", stat = "min") +
+  labs(title = "Estadístico T(y) = mínimo", x = "min(y)")
+
+pp_check(m_norm, plotfun = "stat", stat = "prop_negativos") + labs(title = "Estadístico T(y) = Proporción de negativos", x = "prop_neg(y)")
+
+```
+
+::: {.callout-tip collapse="true"}
+## Respuesta 1c
+
+Las densidades simuladas son simétricas y se extienden claramente por debajo de cero, mientras que los datos son asimétricos a la derecha y están acotados en 0.
+
+Un estadístico natural es el mínimo: en los datos es 0, pero en las réplicas el mínimo es casi siempre negativo (promedio `r round(mean(apply(yrep_norm, 1, min)), 2)`). Equivalentemente, en promedio el `r round(100 * p_neg)` % de los valores simulados son negativos, cuando en los datos ninguno lo es.
+
+Conclusión: el modelo normal puede generar conteos imposibles y no reproduce la asimetría ni la relación media–varianza. Necesitamos una verosimilitud para conteos.
+:::
