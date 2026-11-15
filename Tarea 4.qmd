@@ -1,0 +1,150 @@
+---
+title: "Tarea 4"
+author: "Sol Astengo"
+format: pdf
+---
+
+```{r, include=FALSE}
+library(bayesrules) # para los datos de cada ejercicio
+library(rstanarm) # ajustar glm bayesianos
+library(bayesplot) # diagnóstico y ppchecks
+library(loo) # comparar modelos
+library(tidyverse) # manipular datos
+library(patchwork)
+```
+
+```{r, include=FALSE}
+#| label: funciones-auxiliares
+#| code-summary: "Funciones auxiliares usadas en todo el práctico"
+# Resumen de diagnósticos MCMC: R-hat y razón de tamaño efectivo por parámetro
+tabla_diag <- function(modelo) {
+  tibble(
+    parametro = names(rhat(modelo)),
+    Rhat      = round(rhat(modelo), 4),
+    neff_ratio = round(neff_ratio(modelo), 3)
+  )
+}
+
+# Resumen posterior compacto: media e intervalo de credibilidad al 90 %
+tabla_post <- function(modelo) {
+  draws <- as.matrix(modelo)
+  tibble(
+    parametro = colnames(draws),
+    media     = round(colMeans(draws), 4),
+    q5        = round(apply(draws, 2, quantile, 0.05), 4),
+    q95       = round(apply(draws, 2, quantile, 0.95), 4)
+  )
+}
+```
+
+
+## Carga y breve exploración de los datos
+
+Los datos `weather_perth` contienen 1000 días de registros meteorológicos en Perth, Australia.
+Queremos predecir si lloverá mañana (`raintomorrow`) a partir de la humedad a las 9 h
+(`humidity9am`), la humedad a las 15 h (`humidity3pm`) y si llovió hoy (`raintoday`).
+
+```{r}
+data(weather_perth)
+
+weather <- weather_perth %>% 
+select(raintomorrow, humidity9am, humidity3pm, raintoday) %>% 
+mutate(rain = as.numeric(raintomorrow == "Yes"))
+
+glimpse(weather)
+```
+
+```{r}
+mean(weather$rain)
+```
+De los 1000 días registrados, en promedio llovió al día siguiente en aprox. el 20% % de los casos.
+
+Veamos cuántas veces coincidió si llovió o no hoy con si llovió o no mañana.:
+```{r}
+weather %>% 
+  mutate(acierto = ifelse(
+    (raintomorrow == "No" & raintoday == "No" ) |
+    (raintomorrow == "Yes" & raintoday == "Yes"),
+    1, 0
+  )) %>% 
+  count(acierto)
+```
+En 814 de los 1000 registros, la ocurrencia o ausencia de lluvia en el día actual coincide con lo observado al día siguiente. Esto representa una coincidencia del 81,4 %.
+
+Ahora vemos como varia la humedad a las 9 hs y a las 15hs y si estas variables toman valores mas altos si llovio o no mañana:
+```{r}
+nueve_am <- ggplot(weather, aes(x = humidity9am, y = rain, color = raintomorrow)) +
+  geom_jitter(height = 0.2, alpha = 0.5) +
+  labs(title = "Lluvia al día siguiente según humedad a las 9 am") 
+
+tres_pm <- ggplot(weather, aes(x = humidity3pm, y = rain, color = raintomorrow)) +
+  geom_jitter(height = 0.2, alpha = 0.5) +
+  labs(title = "Lluvia al día siguiente según humedad a las 3 pm")
+
+nueve_am / tres_pm
+```
+En el gráfico de la humedad a las 9 h parece que a medida que aumenta la humedad también aparecen más casos de lluvia al día siguiente. A partir de un 75% de humedad parece haber una mayor presencia de días lluviosos, aunque no es tan fácil distinguir si efectivamente aumenta la proporción de días con lluvia o si simplemente hay más observaciones en esos niveles de humedad. En cambio para la humedad a las 15 h, podemos ver que cuando la humedad supera el 75% la mayoría de los casos corresponden a días en los que sí llovió al día siguiente.
+
+# Ejercicio 6 - Regresión logística con un predictor
+
+Vamos a modelar Y = Indicador de lluvia mañana
+$$ 
+Y = \begin{cases}
+1 & \text{si llueve mañana} \\
+0 & \text{de otro modo}
+\end{cases} 
+$$
+
+Teniendo las siguientes variables predictoras:
+$$
+\begin{align*}
+X_1 &= \text{Humedad de hoy a las 9 am} \\
+X_2 &= \text{Humedad de hoy a las 3 pm} \\
+X_3 &= \text{si llovió o no hoy}
+\end{align*}
+$$
+
+Y usando del libro:
+
+$$ 
+Y_i \sim Bern(\pi_i), \qquad logit(\pi_i) = log(\frac{\pi_i}{1-\pi_i}) = \beta_0 + \beta_1 \ \text{humidity9am}_i
+$$
+Siendo $\pi_i$ las probabilidades de lluvia para mañana y con previa $\beta_{0c} \sim N(-1.4, \ 0.7^2)$ y $\beta_1 \sim N(0.07, \ 0.035^2)$.
+
+### a. Explicar de donde sale el valor -1.4 de la previa del intercepto.
+
+Como vimos en la exploración de los datos en promedio hay aprox. un 20% de probabilidad de lluvia en un día cualquiera, osea $\pi \approx 0,2$, entonces:
+
+$$ logit(0.2) = log \left( \frac{0.2}{1-0.2} \right)  \approx -1.4 $$
+
+### b. Ajustar el modelo (`family = binomial`) y revisar los diagnósticos MCMC.
+
+```{r, results: hide}
+#Ajuste de modelo
+# Configuración común de MCMC (la misma que usa el libro)
+
+rain_model <- stan_glm(raintomorrow ~ humidity9am, 
+                             data = weather,
+                             family = binomial,
+                             prior_intercept = normal(-1.4, 0.7),
+                             prior = normal(0.07, 0.035),
+                             chains = 4, iter = 5000*2, seed = 84735)
+```
+
+```{r}
+#Diagnósticos de MCMC
+
+g1 <- mcmc_trace(rain_model)
+g2 <- mcmc_dens_overlay(rain_model)
+
+g1 / g2
+```
+
+Las cadenas no parecen prsentar problemas de convergencia y las distribuciones de las distintas cadenas se sobreponen bien, parecen tener un comportamiento similar.
+
+```{r}
+tabla_diag(rain_model)
+```
+
+Ambos $\hat{R}$ son casi 1 lo que es una buena señal de convergencia de las cadenas, en cambio en $n_{eff}$ los valores indican que el tamaño efectivo de muestra representa son aprox el 44,5% para el intercepto y el 48,4% para el $\beta_1$, osea el tamaño efectivo de muestra es considerablemente menor que la cantidad de iteraciones realizadas. Podríamos sospechar que aunque las cadenas parecen haber convergido, existe cierta pérdida de eficiencia en el muestreo.
+

@@ -81,9 +81,11 @@ tabla_diag(m_norm)
 ```
 Lindas cadenas :D
 
+Peero chequeamos pp_check
 ```{r}
 pp_check(m_norm, nreps = 50) + labs(title = "Modelo normal: densidades predictivas vs. observadas")
 ```
+El modelo normal no esta muy bueno. 
 
 ```{r}
 prop_negativos <- function(y) mean(y < 0) #Calcula la proporción de negativos en y
@@ -102,7 +104,7 @@ pp_check(m_norm, plotfun = "stat", stat = "prop_negativos") + labs(title = "Esta
 # Ejercicio 2
 
 ```{r}
-m_poi <- stan_glm(count ~ year + offset(log(hours)),
+m_poi_offset <- stan_glm(count ~ year + offset(log(hours)),
                    data = bald_eagles,
                    family = poisson,
                    chains = CADENAS,
@@ -110,9 +112,12 @@ m_poi <- stan_glm(count ~ year + offset(log(hours)),
                    seed = SEMILLA,
                    refresh = 0)
 
-tabla_post(m_poi)
+as.data.frame(m_poi_offset)
+```
+```{r}
+tabla_post(m_poi_offset)
 
-prior_summary(m_poi)
+prior_summary(m_poi_offset)
 ```
 
 ```{r}
@@ -120,6 +125,188 @@ mcmc_trace(m_poi, pars = c("(Intercept)", "year"))
 tabla_diag(m_poi)
 ```
 ```{r}
-pp_check(m_poi)
+pp_check(m_poi_offset)
+```
+```{r}
+pp_check(m_poi_offset)
+
+rhat(m_poi_offset)
+
+tidy(m_poi_offset) ## incompleto
 ```
 
+```{r}
+# Falta definir parametros antes
+ggplot(disp_pois %>% slice_sample(n = 4000),
+       aes(T_obs_P, T_rep_P)) +
+  geom_point(alpha = 0.15, size = 0.8) + 
+  geom_abline(color = "#d730ff", linewidth = 1) +
+  labs(title = "Discrepancia de Pearson D(y, theta)",
+       subtitle = paste0("P(T_rep >= T_obs) = ", round(p_P_pois, 3)),
+       x = "T_obs = D(y, theta)",
+       y = "T_rep = D(y, theta)")
+```
+
+# Ejercicio 3
+
+```{r}
+m_bin_neg_offset <- stan_glm(count ~ year + offset(log(hours)),
+                   data = bald_eagles,
+                   family = neg_binomial_2,
+                   chains = 4,
+                   iter = 5000*2,
+                   seed = 84738,
+                   refresh = 0)
+
+as.data.frame(m_bin_neg_offset)
+```
+
+```{r}
+e_post <- posterior_epred(m_bin_neg_offset) # predicciones de los mu
+bin_neg_predict <- posterior_predict(m_bin_neg_offset) # predicciones de aguilas vistas, cada col es un año
+                  
+head(bin_neg_predict)
+```
+```{r}
+mcmc_trace(m_bin_neg_offset, pars = c("(Intercept)", "year"))
+tabla_diag(m_bin_neg_offset)
+```
+
+Cadenas no presententas problemas de homogeneidad.
+
+```{r}
+pp_check(m_bin_neg_offset, plotfun = "hist", nreps = 10) +
+  labs(title = "Binomial negativa: valores observados vs. replicados",
+       x = "Cantidad de águilas",
+       y = "Frecuencia")
+```
+Parece mejor que el normal :D.
+
+```{r}
+p_neg <- mean(apply(bin_neg_predict, 1, prop_negativos)) # Chequear la proporción de negativos en la simulación
+
+pp_check(m_bin_neg_offset, plotfun = "stat", stat = "min") +
+  labs(title = "Estadístico T(y) = mínimo", x = "min(y)")
+
+pp_check(m_bin_neg_offset, plotfun = "stat", stat = "prop_negativos") + labs(title = "Estadístico T(y) = Proporción de negativos", x = "prop_neg(y)")
+```
+
+s.- aca hay que hacer algo con el año 2013 pero no entendi :(
+
+### d. Comparacion con loo
+
+```{r}
+loo_poi_offset <- loo(m_poi_offset)
+
+loo_poi_offset
+
+resumen_ofset = round(data.frame(
+  año = c(1981:2017),
+  cuenta = bald_eagles$count,
+  prob = exp(loo_poi_offset$pointwise[, "elpd_loo"]), # log de cada año
+  log = loo_poi_offset$pointwise[, "elpd_loo"]),2) # prob de cada año
+```
+
+```{r}
+
+loo_bin_neg <- loo(m_bin_neg_offset)
+
+loo_bin_neg
+
+resumen_ofset = round(data.frame(
+  año = c(1981:2017),
+  cuenta = bald_eagles$count,
+  prob = exp(loo_bin_neg$pointwise[, "elpd_loo"]), # log de cada año
+  log = loo_bin_neg$pointwise[, "elpd_loo"]),2) # prob de cada año
+```
+
+```{r}
+comparacion <- data.frame(
+  año = bald_eagles$year,
+  cuenta = bald_eagles$count,
+  poisson = loo_poi_offset$pointwise[, "elpd_loo"],
+  Bin_Neg = loo_bin_neg$pointwise[, "elpd_loo"]
+)
+
+# comparacion$diferencia <- 
+  # falta el conteo
+```
+
+### e. Evaluar precision predictiva de Bin Neg y de Poisson
+
+```{r}
+bald_eagles$log_hours <- log(bald_eagles$hours)
+
+m_bin_neg_fix <- stan_glm(count ~ year + log(hours),
+                   data = bald_eagles,
+                   prior = normal(location = c(0,1), scale = c(0.25, 0.001)),
+                   family = neg_binomial_2,
+                   chains = 4,
+                   iter = 5000*2,
+                   seed = 84738,
+                   refresh = 0)
+
+m_pois_fix <- stan_glm(count ~ year + log(hours),
+                   data = bald_eagles,
+                   prior = normal(location = c(0,1), scale = c(0.25, 0.001)),
+                   family = poisson,
+                   chains = 4,
+                   iter = 5000*2,
+                   seed = 84738,
+                   refresh = 0)
+```
+
+```{r}
+cv_bin_neg <- prediction_summary_cv(model = m_bin_neg_fix,
+                                    data = bald_eagles,
+                                    k = 5)
+
+cv_pois <- prediction_summary_cv(model = m_pois_fix,
+                                 data = bald_eagles,
+                                 k = 5)
+
+cv_bin_neg$cv
+cv_pois$cv
+```
+
+El mejor modelo es el presente un valor within_50 mas cercano a 0.5 y within_95 mas cercano a 0.95 y cuanto menores sean el mae y el mae_scaled, mejor es el desempeño predictivo.
+
+Parece mejor Poisson. 
+Poisson presenta mejores resultados en tres de las cuatro métricas. La única que favorece a la binomial negativa es mae_scaled
+
+
+# Ejercicio 4
+
+```{r}
+b1 = as.data.frame(m_poi_offset)$year
+```
+
+### a. 
+```{r}
+quantile(exp(b1), c(0.05, 0.5, 0.95))
+```
+
+### b. 
+```{r}
+duplicar = log(2)/b1
+
+quantile(duplicar, c(0.05, 0.5, 0.95))
+```
+
+### c.
+```{r}
+mean(b1 > 0)
+```
+### d. 
+```{r}
+nuevo <- data.frame(year = 2026, hours = 200)
+y_2026 <- posterior_predict(m_poi_offset, newdata = # aca faltan cosas )
+
+mean(y_2026)
+
+quantile(y_2026, c(0.05, 0.5, 0.95))
+```
+
+# Para la tarea 
+
+Ejercicio 6 y 7, capituo 13 de bayes rules!
