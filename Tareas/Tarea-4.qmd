@@ -57,7 +57,7 @@ glimpse(weather)
 ```{r}
 mean(weather$rain)
 ```
-De los 1000 días registrados, en promedio llovió al día siguiente en aprox. el 20% % de los casos.
+De los 1000 días registrados, en promedio llovió al día siguiente en aprox. el 20% de los casos.
 
 Veamos cuántas veces coincidió si llovió o no hoy con si llovió o no mañana.:
 ```{r}
@@ -96,13 +96,13 @@ Y = \begin{cases}
 $$
 
 Teniendo las siguientes variables predictoras:
-$$
-\begin{align*}
-X_1 &= \text{Humedad de hoy a las 9 am} \\
-X_2 &= \text{Humedad de hoy a las 3 pm} \\
-X_3 &= \text{si llovió o no hoy}
-\end{align*}
-$$
+
+$X_1 = \text{Humedad de hoy a las 9 am}$
+
+$X_2 = \text{Humedad de hoy a las 3 pm}$
+
+$X_3 = \text{Si llovió o no hoy}$
+
 
 Y usando del libro:
 
@@ -119,7 +119,7 @@ $$ logit(0.2) = log \left( \frac{0.2}{1-0.2} \right)  \approx -1.4 $$
 
 ### b. Ajustar el modelo (`family = binomial`) y revisar los diagnósticos MCMC.
 
-```{r, results: hide}
+```{r, results = 'hide'}
 #Ajuste de modelo
 # Configuración común de MCMC (la misma que usa el libro)
 
