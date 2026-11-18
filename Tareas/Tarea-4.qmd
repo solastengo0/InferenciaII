@@ -148,3 +148,73 @@ tabla_diag(rain_model)
 
 Ambos $\hat{R}$ son casi 1 lo que es una buena señal de convergencia de las cadenas, en cambio en $n_{eff}$ los valores indican que el tamaño efectivo de muestra representa son aprox el 44,5% para el intercepto y el 48,4% para el $\beta_1$, osea el tamaño efectivo de muestra es considerablemente menor que la cantidad de iteraciones realizadas. Podríamos sospechar que aunque las cadenas parecen haber convergido, existe cierta pérdida de eficiencia en el muestreo.
 
+## c. Hacer un `pp_check()` usando como estadístico la proporción de días con lluvia. 
+
+```{r}
+proportion_rain <- function(x){mean(x == 1)}
+
+pp_check(rain_model, nreps = 100,
+         plotfun = "stat", stat = "proportion_rain") + 
+  xlab("probability of rain")
+```
+El histograma muestra la proporción de días en los que llovió en cada uno de los 100 conjuntos de datos simulados posteriores. La línea vertical representa la proporción observada de días con lluvia en los datos.
+ 
+  - ¿Es un chequeo exigente para este modelo? 
+  
+Este chequeo no es demasiado exigente para el modelo, ya que la presencia de un intercepto permite ajustar el nivel general de la probabilidad de lluvia. Por lo tanto, el modelo puede reproducir una proporción global de días lluviosos similar a la observada, sin que eso implique necesariamente que represente correctamente cómo varía la probabilidad de lluvia según la humedad.
+
+::: {.callout-note title="Chequeos predictivos por subgrupos"}
+
+En el inciso anterior comparamos la proporción global de días con lluvia observada con las proporciones obtenidas en los datos simulados por el modelo. Sin embargo, ese chequeo no nos permite saber si el modelo reproduce correctamente la relación entre la humedad y la probabilidad de lluvia.
+
+Para profundizar el análisis, podemos dividir las observaciones en distintos grupos y comparar las proporciones de lluvia dentro de cada uno. Para eso utilizaremos la función `ppc_stat_grouped()`.
+
+Esta función recibe tres elementos principales:
+
+- `y`: los valores observados de la variable respuesta.
+- `yrep`: los valores de la variable respuesta generados mediante las simulaciones predictivas posteriores.
+- `group`: indica a qué grupo pertenece cada observación.
+
+Con `stat = "mean"` calculamos la media de la variable respuesta dentro de cada grupo. Como nuestra respuesta es binaria (0 si no llovió y 1 si llovió), esa media representa la proporción de días con lluvia en cada grupo.
+
+De esta manera, podemos comparar las proporciones observadas con las que genera el modelo para distintos grupos de observaciones.
+
+:::
+
+### d. Chequeo agrupando por tramos de `humidity9am`
+
+Definimos tramos de 10 punto porcentuales para la variable`humidity9am` y creeamos una variable nueva con el grupo al que pertenece la variable:
+```{r}
+weather <- weather %>%
+  mutate(grupo_humedad = cut(
+    humidity9am,
+    breaks = seq(10, 100, by = 10),
+    include.lowest = TRUE
+  ))
+9
+levels(weather$grupo_humedad)
+```
+
+```{r}
+yrep <- posterior_predict(rain_model)
+
+ppc_stat_grouped(weather$rain, yrep, group = weather$grupo_humedad, stat = "mean")
+```
+
+Las barras celestes representan la distribución de las proporciones obtenidas en las simulaciones predictivas posteriores $T(y_{rep})$. La línea vertical azul oscuro representa la proporción observada en cada grupo $T(y)$.
+
+Para los tramos de humedad (10:20] y (20:30] parece que el modelo tiene problemas para reproducir lo que ocurre en los datos de esos grupos, ya que las proporciones observadas se encuentran alejadas de las proporciones simuladas.
+Para los tramos (30:40], (40:50], (50:60], (60:70] y (70:80] las proporciones observadas se encuentran dentro de las distribuciones predictivas, aunque no todas están cerca de su centro.
+Por último para los tramos (80:90] y (90:100] las proporciones observadas se encuentran próximas al centro de las distribuciones simuladas, por lo que parece que el modelo representa mejor lo que ocurre en estos grupos.
+
+  - ¿El modelo reproduce la curva observada en la exploración?
+
+En general logra representar el aumento de la proporción de días con lluvia a medida que aumenta la humedad a las 9 am. Pero para los tramos de humedad más bajos (10:20] y (20:30] se observan diferencias importantes entre las proporciones observadas y las simuladas. En los demás tramos el ajuste parece ser mejor, especialmente para los valores de humedad más altos.
+
+### e. Chequeo agrupando por tramos de `raintoday`
+
+```{r}
+ppc_stat_grouped(weather$rain, yrep, group = weather$raintoday, stat = "mean")
+```
+
+
