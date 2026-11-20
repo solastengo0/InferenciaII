@@ -2,6 +2,10 @@
 title: "Tarea 4"
 author: "Sol Astengo"
 format: pdf
+execute:
+  warning: false
+  message: false
+  echo: false
 ---
 
 ```{r, include=FALSE}
@@ -37,12 +41,12 @@ tabla_post <- function(modelo) {
 }
 ```
 
-
 ## Carga y breve exploración de los datos
 
-Los datos `weather_perth` contienen 1000 días de registros meteorológicos en Perth, Australia.
-Queremos predecir si lloverá mañana (`raintomorrow`) a partir de la humedad a las 9 h
-(`humidity9am`), la humedad a las 15 h (`humidity3pm`) y si llovió hoy (`raintoday`).
+Los datos `weather_perth` contienen 1000 días de registros
+meteorológicos en Perth, Australia. Queremos predecir si lloverá mañana
+(`raintomorrow`) a partir de la humedad a las 9 h (`humidity9am`), la
+humedad a las 15 h (`humidity3pm`) y si llovió hoy (`raintoday`).
 
 ```{r}
 data(weather_perth)
@@ -57,9 +61,13 @@ glimpse(weather)
 ```{r}
 mean(weather$rain)
 ```
-De los 1000 días registrados, en promedio llovió al día siguiente en aprox. el 20% de los casos.
 
-Veamos cuántas veces coincidió si llovió o no hoy con si llovió o no mañana.:
+De los 1000 días registrados, en promedio llovió al día siguiente en
+aprox. el 20% de los casos.
+
+Veamos cuántas veces coincidió si llovió o no hoy con si llovió o no
+mañana.:
+
 ```{r}
 weather %>% 
   mutate(acierto = ifelse(
@@ -69,25 +77,45 @@ weather %>%
   )) %>% 
   count(acierto)
 ```
-En 814 de los 1000 registros, la ocurrencia o ausencia de lluvia en el día actual coincide con lo observado al día siguiente. Esto representa una coincidencia del 81,4 %.
 
-Ahora vemos como varia la humedad a las 9 hs y a las 15hs y si estas variables toman valores mas altos si llovio o no mañana:
+En 814 de los 1000 registros, la ocurrencia o ausencia de lluvia en el
+día actual coincide con lo observado al día siguiente. Esto representa
+una coincidencia del 81,4 %.
+
+Ahora vemos como varia la humedad a las 9 hs y a las 15hs y si estas
+variables toman valores mas altos si llovio o no mañana:
+
 ```{r}
-nueve_am <- ggplot(weather, aes(x = humidity9am, y = rain, color = raintomorrow)) +
-  geom_jitter(height = 0.2, alpha = 0.5) +
+nueve_am <- ggplot(weather, aes(x = humidity9am,
+                                y = rain,
+                                color = raintomorrow)) +
+  geom_jitter(height = 0.2,
+              alpha = 0.5) +
   labs(title = "Lluvia al día siguiente según humedad a las 9 am") 
 
-tres_pm <- ggplot(weather, aes(x = humidity3pm, y = rain, color = raintomorrow)) +
-  geom_jitter(height = 0.2, alpha = 0.5) +
+tres_pm <- ggplot(weather, aes(x = humidity3pm,
+                               y = rain,
+                               color = raintomorrow)) +
+  geom_jitter(height = 0.2,
+              alpha = 0.5) +
   labs(title = "Lluvia al día siguiente según humedad a las 3 pm")
 
 nueve_am / tres_pm
 ```
-En el gráfico de la humedad a las 9 h parece que a medida que aumenta la humedad también aparecen más casos de lluvia al día siguiente. A partir de un 75% de humedad parece haber una mayor presencia de días lluviosos, aunque no es tan fácil distinguir si efectivamente aumenta la proporción de días con lluvia o si simplemente hay más observaciones en esos niveles de humedad. En cambio para la humedad a las 15 h, podemos ver que cuando la humedad supera el 75% la mayoría de los casos corresponden a días en los que sí llovió al día siguiente.
+
+En el gráfico de la humedad a las 9 h parece que a medida que aumenta la
+humedad también aparecen más casos de lluvia al día siguiente. A partir
+de un 75% de humedad parece haber una mayor presencia de días lluviosos,
+aunque no es tan fácil distinguir si efectivamente aumenta la proporción
+de días con lluvia o si simplemente hay más observaciones en esos
+niveles de humedad. En cambio para la humedad a las 15 h, podemos ver
+que cuando la humedad supera el 75% la mayoría de los casos corresponden
+a días en los que sí llovió al día siguiente.
 
 # Ejercicio 6 - Regresión logística con un predictor
 
-Vamos a modelar Y = Indicador de lluvia mañana
+Vamos a modelar Y = Indicador de lluvia mañana 
+
 $$ 
 Y = \begin{cases}
 1 & \text{si llueve mañana} \\
@@ -103,26 +131,24 @@ $X_2 = \text{Humedad de hoy a las 3 pm}$
 
 $X_3 = \text{Si llovió o no hoy}$
 
-
 Y usando del libro:
 
-$$ 
-Y_i \sim Bern(\pi_i), \qquad logit(\pi_i) = log(\frac{\pi_i}{1-\pi_i}) = \beta_0 + \beta_1 \ \text{humidity9am}_i
-$$
-Siendo $\pi_i$ las probabilidades de lluvia para mañana y con previa $\beta_{0c} \sim N(-1.4, \ 0.7^2)$ y $\beta_1 \sim N(0.07, \ 0.035^2)$.
+$$ Y_i \sim Bern(\pi_i), \qquad logit(\pi_i) = log(\frac{\pi_i}{1-\pi_i}) = \beta_0 + \beta_1 \ \text{humidity9am}_i $$ 
+
+Siendo $\pi_i$ las probabilidades de lluvia para mañana y con previa
+$\beta_{0c} \sim N(-1.4, \ 0.7^2)$ y $\beta_1 \sim N(0.07, \ 0.035^2)$.
 
 ### a. Explicar de donde sale el valor -1.4 de la previa del intercepto.
 
-Como vimos en la exploración de los datos en promedio hay aprox. un 20% de probabilidad de lluvia en un día cualquiera, osea $\pi \approx 0,2$, entonces:
+Como vimos en la exploración de los datos en promedio hay aprox. un 20%
+de probabilidad de lluvia en un día cualquiera, osea $\pi \approx 0,2$,
+entonces:
 
 $$ logit(0.2) = log \left( \frac{0.2}{1-0.2} \right)  \approx -1.4 $$
 
 ### b. Ajustar el modelo (`family = binomial`) y revisar los diagnósticos MCMC.
 
-```{r, results = 'hide'}
-#Ajuste de modelo
-# Configuración común de MCMC (la misma que usa el libro)
-
+```{r, results = 'hide', echo=TRUE}
 rain_model <- stan_glm(raintomorrow ~ humidity9am, 
                              data = weather,
                              family = binomial,
@@ -131,59 +157,85 @@ rain_model <- stan_glm(raintomorrow ~ humidity9am,
                              chains = 4, iter = 5000*2, seed = 84735)
 ```
 
-```{r}
-#Diagnósticos de MCMC
+Para los diagnosticos de MCMC:
 
+```{r}
 g1 <- mcmc_trace(rain_model)
 g2 <- mcmc_dens_overlay(rain_model)
 
 g1 / g2
 ```
 
-Las cadenas no parecen prsentar problemas de convergencia y las distribuciones de las distintas cadenas se sobreponen bien, parecen tener un comportamiento similar.
+Las cadenas no parecen prsentar problemas de convergencia y las
+distribuciones de las distintas cadenas se sobreponen bien, parecen
+tener un comportamiento similar.
 
 ```{r}
 tabla_diag(rain_model)
 ```
 
-Ambos $\hat{R}$ son casi 1 lo que es una buena señal de convergencia de las cadenas, en cambio en $n_{eff}$ los valores indican que el tamaño efectivo de muestra representa son aprox el 44,5% para el intercepto y el 48,4% para el $\beta_1$, osea el tamaño efectivo de muestra es considerablemente menor que la cantidad de iteraciones realizadas. Podríamos sospechar que aunque las cadenas parecen haber convergido, existe cierta pérdida de eficiencia en el muestreo.
+Ambos $\hat{R}$ son casi 1 lo que es una buena señal de convergencia de
+las cadenas, en cambio en $n_{eff}$ los valores indican que el tamaño
+efectivo de muestra representa son aprox el 44,5% para el intercepto y
+el 48,4% para el $\beta_1$, osea el tamaño efectivo de muestra es
+considerablemente menor que la cantidad de iteraciones realizadas.
+Podríamos sospechar que aunque las cadenas parecen haber convergido,
+existe cierta pérdida de eficiencia en el muestreo.
 
-## c. Hacer un `pp_check()` usando como estadístico la proporción de días con lluvia. 
+### c. Hacer un `pp_check()` usando como estadístico la proporción de días con lluvia.
 
 ```{r}
-proportion_rain <- function(x){mean(x == 1)}
-
 pp_check(rain_model, nreps = 100,
-         plotfun = "stat", stat = "proportion_rain") + 
+         plotfun = "stat", stat = "mean") + 
   xlab("probability of rain")
 ```
-El histograma muestra la proporción de días en los que llovió en cada uno de los 100 conjuntos de datos simulados posteriores. La línea vertical representa la proporción observada de días con lluvia en los datos.
- 
-  - ¿Es un chequeo exigente para este modelo? 
-  
-Este chequeo no es demasiado exigente para el modelo, ya que la presencia de un intercepto permite ajustar el nivel general de la probabilidad de lluvia. Por lo tanto, el modelo puede reproducir una proporción global de días lluviosos similar a la observada, sin que eso implique necesariamente que represente correctamente cómo varía la probabilidad de lluvia según la humedad.
+
+El histograma muestra la proporción de días en los que llovió en cada
+uno de los 100 conjuntos de datos simulados posteriores. La línea
+vertical representa la proporción observada de días con lluvia en los
+datos.
+
+-   ¿Es un chequeo exigente para este modelo?
+
+Este chequeo no es demasiado exigente para el modelo, ya que la
+presencia de un intercepto permite ajustar el nivel general de la
+probabilidad de lluvia. Por lo tanto, el modelo puede reproducir una
+proporción global de días lluviosos similar a la observada, sin que eso
+implique necesariamente que represente correctamente cómo varía la
+probabilidad de lluvia según la humedad.
 
 ::: {.callout-note title="Chequeos predictivos por subgrupos"}
+Anteriormente comparamos la proporción global de días con lluvia
+observada con las proporciones obtenidas en los datos simulados por el
+modelo. Sin embargo ese chequeo no nos permite saber si el modelo
+reproduce correctamente la relación entre la humedad y la probabilidad
+de lluvia.
 
-En el inciso anterior comparamos la proporción global de días con lluvia observada con las proporciones obtenidas en los datos simulados por el modelo. Sin embargo, ese chequeo no nos permite saber si el modelo reproduce correctamente la relación entre la humedad y la probabilidad de lluvia.
+Para profundizar el análisis podemos dividir las observaciones en
+distintos grupos y comparar las proporciones de lluvia dentro de cada
+uno. 
 
-Para profundizar el análisis, podemos dividir las observaciones en distintos grupos y comparar las proporciones de lluvia dentro de cada uno. Para eso utilizaremos la función `ppc_stat_grouped()`.
+Para eso utilizaremos la función `ppc_stat_grouped()`, la cual recibe tres elementos principales:
 
-Esta función recibe tres elementos principales:
+-   `y`: los valores observados de la variable respuesta.
+-   `yrep`: los valores de la variable respuesta generados mediante las
+    simulaciones predictivas posteriores.
+-   `group`: indica a qué grupo pertenece cada observación.
 
-- `y`: los valores observados de la variable respuesta.
-- `yrep`: los valores de la variable respuesta generados mediante las simulaciones predictivas posteriores.
-- `group`: indica a qué grupo pertenece cada observación.
+Con `stat = "mean"` calculamos la media de la variable respuesta dentro
+de cada grupo. Como nuestra respuesta es binaria (0 si no llovió y 1 si
+llovió) esa media representa la proporción de días con lluvia en cada
+grupo.
 
-Con `stat = "mean"` calculamos la media de la variable respuesta dentro de cada grupo. Como nuestra respuesta es binaria (0 si no llovió y 1 si llovió), esa media representa la proporción de días con lluvia en cada grupo.
-
-De esta manera, podemos comparar las proporciones observadas con las que genera el modelo para distintos grupos de observaciones.
-
+De esta manera podemos comparar las proporciones observadas con las que
+genera el modelo para distintos grupos de observaciones.
 :::
 
 ### d. Chequeo agrupando por tramos de `humidity9am`
 
-Definimos tramos de 10 punto porcentuales para la variable`humidity9am` y creeamos una variable nueva con el grupo al que pertenece la variable:
+Definimos tramos de 10 punto porcentuales para la variable`humidity9am`
+y creeamos una variable nueva con el grupo al que pertenece la variable:
+
 ```{r}
 weather <- weather %>%
   mutate(grupo_humedad = cut(
@@ -191,30 +243,195 @@ weather <- weather %>%
     breaks = seq(10, 100, by = 10),
     include.lowest = TRUE
   ))
-9
-levels(weather$grupo_humedad)
 ```
 
+Los tramos quedan de la siguiente forma:
 ```{r}
+tibble(tramos = levels(weather$grupo_humedad))
+```
+
+```{r, echo=TRUE}
 yrep <- posterior_predict(rain_model)
 
-ppc_stat_grouped(weather$rain, yrep, group = weather$grupo_humedad, stat = "mean")
+ppc_stat_grouped(weather$rain,
+                 yrep,
+                 group = weather$grupo_humedad,
+                 stat = "mean")
 ```
 
-Las barras celestes representan la distribución de las proporciones obtenidas en las simulaciones predictivas posteriores $T(y_{rep})$. La línea vertical azul oscuro representa la proporción observada en cada grupo $T(y)$.
+Las barras celestes representan la distribución de las proporciones
+obtenidas en las simulaciones predictivas posteriores $T(y_{rep})$. La
+línea vertical azul oscuro representa la proporción observada en cada
+grupo $T(y)$.
 
-Para los tramos de humedad (10:20] y (20:30] parece que el modelo tiene problemas para reproducir lo que ocurre en los datos de esos grupos, ya que las proporciones observadas se encuentran alejadas de las proporciones simuladas.
-Para los tramos (30:40], (40:50], (50:60], (60:70] y (70:80] las proporciones observadas se encuentran dentro de las distribuciones predictivas, aunque no todas están cerca de su centro.
-Por último para los tramos (80:90] y (90:100] las proporciones observadas se encuentran próximas al centro de las distribuciones simuladas, por lo que parece que el modelo representa mejor lo que ocurre en estos grupos.
+Para los tramos de humedad [10:20] y (20:30] parece que el modelo
+tiene problemas para reproducir lo que ocurre en los datos de esos
+grupos, ya que las proporciones observadas se encuentran alejadas de las
+proporciones simuladas. Para los tramos (30:40], (40:50], (50:60],
+(60:70] y (70:80] las proporciones observadas se encuentran dentro de
+las distribuciones predictivas, aunque no todas están cerca de su
+centro. Por último para los tramos (80:90] y (90:100] las proporciones
+observadas se encuentran próximas al centro de las distribuciones
+simuladas, por lo que parece que el modelo representa mejor lo que
+ocurre en estos grupos.
 
-  - ¿El modelo reproduce la curva observada en la exploración?
+-   ¿El modelo reproduce la curva observada en la exploración?
 
-En general logra representar el aumento de la proporción de días con lluvia a medida que aumenta la humedad a las 9 am. Pero para los tramos de humedad más bajos (10:20] y (20:30] se observan diferencias importantes entre las proporciones observadas y las simuladas. En los demás tramos el ajuste parece ser mejor, especialmente para los valores de humedad más altos.
+En general logra representar el aumento de la proporción de días con
+lluvia a medida que aumenta la humedad a las 9 am. Pero para los tramos
+de humedad más bajos (10:20] y (20:30] se observan diferencias
+importantes entre las proporciones observadas y las simuladas. En los
+demás tramos el ajuste parece ser mejor, especialmente para los valores
+de humedad más altos.
 
 ### e. Chequeo agrupando por tramos de `raintoday`
 
 ```{r}
-ppc_stat_grouped(weather$rain, yrep, group = weather$raintoday, stat = "mean")
+ppc_stat_grouped(weather$rain,
+                 yrep,
+                 group = weather$raintoday,
+                 stat = "mean")
 ```
 
+Parece que el modelo no reproduce adecuadamente las diferencias entre
+los dos grupos. Aunque en el inciso 6.c lograba reproducir la proporción
+global de lluvia, al separar las observaciones según raintoday vemos que
+no representa bien el comportamiento de cada grupo, lo cual tiene
+sentido ya que el modelo utiliza `humidity9am` como único predictor,
+pero no incorpora información sobre si llovió o no ese mismo día.
 
+# Ejercicio 7 - Regresión logística con tres predictores
+
+### a. Ajuste de modelo y diagnostico MCMC
+
+Ajustar un modelo con `humidity9am`, `humidity3pm` y `raintoday`,
+manteniendo la previa del intercepto y usando previas débilmente
+informativas para los coeficientes. Y revisar los diagnósticos MCMC.
+
+$$ 
+Y_i \sim Bern(\pi_i), \qquad logit(\pi_i) = log(\frac{\pi_i}{1-\pi_i}) = \beta_0 + \beta_1 \ \text{humidity9am}_i + \beta_2 \ \text{humidity3pm}_i + \beta_3 \ \text{raintoday}_i
+$$ 
+
+Con las siguientes previas, las cuales son debilmente informativas
+porque ahora tenemos 3 predictores que pueden aportar información
+relacionada entre si, y fijandolas de la sigiente manera permitimos que
+tomen valores al rededor de 0, tanto positivos como negativos, además
+mantenemos la previa del intercepto centrado:
+
+$\beta_{0c}\sim N(-1.4,0.7^2)$
+
+$\beta_1\sim N(0,0.14^2)$
+
+$\beta_2\sim N(0,0.15^2)$
+
+$\beta_3\sim N(0, 6.45^2)$
+
+```{r, results = 'hide', echo=TRUE}
+rain_model_2 <- stan_glm(
+  raintomorrow ~ humidity9am + humidity3pm + raintoday, 
+  data = weather, family = binomial,
+  prior_intercept = normal(-1.4, 0.7),
+  prior = normal(0, 2.5, autoscale = TRUE), 
+  chains = 4, iter = 5000*2, seed = 84735)
+```
+
+Pasemos a los diagnósticos MCMC
+
+```{r}
+mcmc_trace(rain_model_2)
+```
+
+Para cada $\beta_j$ las distintas cadenas simuladas se sobreponen bien y
+no se observan tendencias positivas o negativas en ningún gráfico, no se
+observan posibles problemas de convergencia.
+
+```{r}
+mcmc_dens_overlay(rain_model_2)
+```
+
+Tampoco se observan grandes diferencias entre las distintas cadenas para
+cada $\beta_j$, también es una buena señal de convergencia.
+
+```{r}
+tabla_diag(rain_model_2)
+```
+
+Todos los valores de $\hat{R}$ son cercanos a 1, indicador de
+convergencia en las cadenas, los $n_{eff} \ ratio$ varian entre 0,5 y
+0,8 lo que nos indica que el tamaño efectivo de muestra es menor al
+número de iteraciónes que se realizaron (10000), en particular
+`humidity3pm` tiene el menor $n_{eff}$.
+
+### b. Chequeo agrupando por tramos de `raintoday`
+
+Realicemos el chequeo y veamos si con el nuevo modelo se resuelve el
+problema que tenía el anterior reproduciendo las diferencias entre las
+clases `Yes` y `No`.
+
+```{r}
+yrep2 <- posterior_predict(rain_model_2)
+
+ppc_stat_grouped(weather$rain, 
+                 yrep2, 
+                 group = weather$raintoday, 
+                 stat = "mean")
+```
+
+Podemos observar que para ambas clases la proporción observada está casi
+en el medio de las simuladas. Esta mejora se debe a que en este modelo
+sí estamos incluyendo a `raintoday` como predictor, lo que permite al
+modelo reproducir mejor las diferencias en la proporción de lluvia al
+día siguiente entre ambas clases.
+
+### c. Compare los dos modelos logísticos con loo_compare(), y elije el mejor modelo
+
+```{r}
+loo_compare(loo(rain_model), loo(rain_model_2))
+```
+
+`elpd_diff` representa la diferencia en el rendimiento predictivo
+esperado respecto al mejor modelo. El modelo `rain_model` tiene una
+diferencia de -80.2, por lo tanto tiene un rendimiento predictivo
+inferior.
+
+`se_diff` es el error estándar de esa diferencia. En este caso, la
+diferencia de 80.2 es considerablemente mayor que su error estándar de
+13.5.
+
+Concluimos que el modelo que incorpora `humidity9am`, `humidity3pm` y
+`raintoday` como variables predictivas presenta un mejor desempeño
+predivtivo que el que solo incluía a `humidity9am`.
+
+### d. Con el modelo elegido, use la función `classification_summary()` con puntos
+
+de corte 0.5 y 0.2. Explique por qué la exactitud global es engañosa en
+este problema y qué se gana y qué se pierde al bajar el corte.
+
+```{r, echo=TRUE}
+set.seed(11)
+accuracy_2 <- classification_summary(
+  model = rain_model_2,
+  data = weather,
+  cutoff = 0.2)
+
+accuracy_5 <- classification_summary(
+  model = rain_model_2,
+  data = weather,
+  cutoff = 0.5)
+```
+
+**Para punto de corte 0.2:**
+
+```{r}
+accuracy_2
+```
+
+**Para punto de corte 0.5:**
+
+```{r}
+accuracy_5
+```
+
+De las matrices de confusión vemos que para el punto de corte 0.2 se clasifican correctamente 663 de los `No` y 140 de los `Yes`, sumando un total de 803 observaciones clasificadas correctamente. En cambio para el punto de corte 0.5 son 783 los `No` clasificados correctamente y 78 los `Yes`, alcanzando un total de 861 observaciones con clasificación correcta. Esto parece indicar que el punto de corte 0.5 es mejor en cuanto a clasificaciones globales.
+
+Cuando vemos las tablas de medidas, notamos que al utilizar un punto de corte de 0.2 respecto a uno de 0.5 aumenta la sensibilidad, es decir el modelo identifica correctamente una mayor proporción de los días en los que llueve, pero disminuye la especificidad, osea aumenta la cantidad de días sin lluvia que clasifica incorrectamente como lluviosos. Por último el resultado del accuracy global acompaña la conclusión extraída de las matrices de confusión: con un punto de corte de 0.5 tenemos una mayor tasa de aciertos.
